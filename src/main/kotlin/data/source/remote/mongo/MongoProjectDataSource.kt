@@ -16,45 +16,42 @@ class MongoProjectDataSource(
     private val projectCollection : MongoCollection<ProjectDTO>,
 ) : RemoteProjectDataSource {
     override suspend fun createProject(project: Project): Project {
-        try {
-            projectCollection .insertOne(project.toProjectDTO())
-            return project
-        } catch (e: Exception) {
-            throw CreationItemFailedException("project creation failed ${e.message}")
-        }
+        return executeMongoOperation(
+            operation = { projectCollection.insertOne(project.toProjectDTO()); project },
+            errorMessage = "Failed to create project",
+            exceptionFactory = { message -> CreationItemFailedException(message) }
+        )
     }
 
     override suspend fun updateProject(updatedProject: Project): Project {
-        try {
-            projectCollection .replaceOne(Filters.eq(ID, updatedProject.id), updatedProject.toProjectDTO())
-            return updatedProject
-        } catch (e: Exception) {
-            throw UpdateItemFailedException("project update failed ${e.message}")
-
-        }
+        return  executeMongoOperation(
+            operation = {  projectCollection .replaceOne(Filters.eq(ID, updatedProject.id), updatedProject.toProjectDTO());updatedProject},
+            errorMessage = "Failed to update project",
+            exceptionFactory = { message -> UpdateItemFailedException(message) }
+        )
     }
 
     override suspend fun deleteProject(projectId: String) {
-        try {
-            projectCollection .deleteOne(Filters.eq(ID, projectId))
-        } catch (e: Exception) {
-            throw DeleteItemFailedException("project delete failed ${e.message}")
-        }
+         return executeMongoOperation(
+             operation = { projectCollection .deleteOne(Filters.eq(ID, projectId)) },
+             errorMessage = "Failed to delete project",
+             exceptionFactory = { message -> DeleteItemFailedException(message) }
+         )
     }
 
     override suspend fun getAllProjects(): List<Project> {
-        try {
-            return projectCollection .find().toList().map { it.toProject() }
-        } catch (e: Exception) {
-            throw GetItemsFailedException("projects get failed ${e.message}")
-        }
+        return executeMongoOperation(
+            operation = { projectCollection .find().toList().map { it.toProject() } },
+            errorMessage = "Failed to get projects",
+            exceptionFactory = { message -> GetItemsFailedException(message) }
+        )
     }
 
     override suspend fun getProjectById(projectId: String): Project? {
-        try {
-            return projectCollection .find(Filters.eq(ID, projectId)).firstOrNull()?.toProject()
-        } catch (e: Exception) {
-            throw GetItemByIdFailedException("project get by id failed ${e.message}")
-        }
+        return executeMongoOperation(
+            operation = { projectCollection .find(Filters.eq(ID, projectId)).firstOrNull()?.toProject() },
+            errorMessage = "Failed to get project by id",
+            exceptionFactory = { message -> GetItemByIdFailedException(message) }
+        )
     }
 }
