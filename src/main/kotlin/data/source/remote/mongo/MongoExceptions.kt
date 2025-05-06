@@ -3,7 +3,7 @@ package org.example.data.source.remote.mongo
 import com.mongodb.*
 
 
-suspend fun <T> executeMongoOperation(
+suspend fun <T> handleMongoExceptions(
     operation: suspend () -> T,
     errorMessage: String,
     exceptionFactory: (String) -> Exception ): T {
