@@ -9,35 +9,62 @@ import org.example.data.mapper.toTaskDTO
 import org.example.data.models.TaskDTO
 import org.example.data.source.remote.contract.RemoteTaskDataSource
 import org.example.logic.models.Task
+import org.example.logic.utils.*
 
 class MongoTaskDataSource(
     private val mongoClient: MongoCollection<TaskDTO>
 ) : RemoteTaskDataSource {
     override suspend fun createTask(task: Task): Task {
-        mongoClient.insertOne(task.toTaskDTO())
-        return task
+        try {
+            mongoClient.insertOne(task.toTaskDTO())
+            return task
+        } catch (e: Exception) {
+            throw CreationItemFailedException("project creation failed ${e.message}")
+
+        }
     }
 
     override suspend fun updateTask(updatedTask: Task): Task {
-        mongoClient.replaceOne(Filters.eq("id", updatedTask.id), updatedTask.toTaskDTO())
-        return updatedTask
+        try {
+            mongoClient.replaceOne(Filters.eq("id", updatedTask.id), updatedTask.toTaskDTO())
+            return updatedTask
+        } catch (e: Exception) {
+            throw UpdateItemFailedException("project update failed ${e.message}")
+
+        }
     }
 
     override suspend fun deleteTask(taskId: String) {
-        mongoClient.deleteOne(Filters.eq("id", taskId))
+        try {
+            mongoClient.deleteOne(Filters.eq("id", taskId))
+        } catch (e: Exception) {
+            throw DeleteItemFailedException("project delete failed ${e.message}")
+        }
     }
 
     override suspend fun getAllTasks(): List<Task> {
-        return mongoClient.find().toList().map { it.toTask() }
+        try {
+            return mongoClient.find().toList().map { it.toTask() }
+        } catch (e: Exception) {
+            throw GetItemsFailedException("tasks get failed ${e.message}")
+        }
 
     }
 
     override suspend fun getTaskById(taskId: String): Task? {
-        return mongoClient.find(Filters.eq("id", taskId)).firstOrNull()?.toTask()
+        try {
+            return mongoClient.find(Filters.eq("id", taskId)).firstOrNull()?.toTask()
+        } catch (e: Exception) {
+            throw GetItemByIdFailedException("task get by id failed ${e.message}")
+        }
 
     }
 
     override suspend fun deleteTasksByStateId(stateId: String, taskId: String) {
-        mongoClient.deleteOne(Filters.and(Filters.eq("stateId", stateId), (Filters.eq("id", taskId))))
+        try {
+            mongoClient.deleteOne(Filters.and(Filters.eq("stateId", stateId), (Filters.eq("id", taskId))))
+        } catch (e: Exception) {
+            throw DeleteItemFailedException("task delete failed ${e.message}")
+        }
     }
 }
