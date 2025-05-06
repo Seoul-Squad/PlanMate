@@ -8,32 +8,53 @@ import org.example.data.mapper.toProject
 import org.example.data.mapper.toProjectDTO
 import org.example.data.models.ProjectDTO
 import org.example.data.source.remote.contract.RemoteProjectDataSource
+import org.example.data.utils.Constants.ID
 import org.example.logic.models.Project
+import org.example.logic.utils.*
 
 class MongoProjectDataSource(
-    private val mongoClient: MongoCollection<ProjectDTO>
+    private val projectCollection : MongoCollection<ProjectDTO>,
 ) : RemoteProjectDataSource {
     override suspend fun createProject(project: Project): Project {
-        mongoClient.insertOne(project.toProjectDTO())
-        return project
+        try {
+            projectCollection .insertOne(project.toProjectDTO())
+            return project
+        } catch (e: Exception) {
+            throw CreationItemFailedException("project creation failed ${e.message}")
+        }
     }
 
     override suspend fun updateProject(updatedProject: Project): Project {
-        mongoClient.replaceOne(Filters.eq("id", updatedProject.id), updatedProject.toProjectDTO())
-        return updatedProject
+        try {
+            projectCollection .replaceOne(Filters.eq(ID, updatedProject.id), updatedProject.toProjectDTO())
+            return updatedProject
+        } catch (e: Exception) {
+            throw UpdateItemFailedException("project update failed ${e.message}")
+
+        }
     }
 
     override suspend fun deleteProject(projectId: String) {
-        mongoClient.deleteOne(Filters.eq("id", projectId))
+        try {
+            projectCollection .deleteOne(Filters.eq(ID, projectId))
+        } catch (e: Exception) {
+            throw DeleteItemFailedException("project delete failed ${e.message}")
+        }
     }
 
     override suspend fun getAllProjects(): List<Project> {
-        return mongoClient.find().toList().map { it.toProject()}
-
+        try {
+            return projectCollection .find().toList().map { it.toProject() }
+        } catch (e: Exception) {
+            throw GetItemsFailedException("projects get failed ${e.message}")
+        }
     }
 
     override suspend fun getProjectById(projectId: String): Project? {
-        return mongoClient.find(Filters.eq("id", projectId)).firstOrNull()?.toProject()
-
+        try {
+            return projectCollection .find(Filters.eq(ID, projectId)).firstOrNull()?.toProject()
+        } catch (e: Exception) {
+            throw GetItemByIdFailedException("project get by id failed ${e.message}")
+        }
     }
 }
