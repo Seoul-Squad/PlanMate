@@ -8,6 +8,7 @@ import org.example.data.mapper.toProject
 import org.example.data.mapper.toProjectDTO
 import org.example.data.models.ProjectDTO
 import org.example.data.source.remote.contract.RemoteProjectDataSource
+import org.example.data.source.remote.mongo.MongoExceptionHandler.Companion.handleMongoExceptions
 import org.example.data.utils.Constants.ID
 import org.example.logic.models.Project
 import org.example.logic.utils.*
