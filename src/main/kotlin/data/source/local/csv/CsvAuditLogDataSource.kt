@@ -10,14 +10,15 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
-class CsvAuditLogDataSource(private val csvReader: CSVReader, private val csvWriter: CSVWriter) :
-    LocalAuditLogDataSource {
+class CsvAuditLogDataSource(
+    private val csvReader: CSVReader,
+    private val csvWriter: CSVWriter,
+) : LocalAuditLogDataSource {
     private var audits = mutableListOf<AuditLog>()
 
     init {
         readCsvAuditLogs()
     }
-
 
     override fun saveAuditLog(auditLog: AuditLog): AuditLog {
         audits.add(auditLog)
@@ -30,13 +31,15 @@ class CsvAuditLogDataSource(private val csvReader: CSVReader, private val csvWri
         writeCsvAuditLogs()
     }
 
-    override fun getEntityLogs(entityId: Uuid, entityType: AuditLog.EntityType): List<AuditLog> {
-        return audits.filter { it.entityId == entityId.toHexString() && it.entityType == entityType }
-    }
+    override fun getEntityLogs(
+        entityId: Uuid,
+        entityType: AuditLog.EntityType,
+    ): List<AuditLog> =
+        audits.filter {
+            it.entityId == entityId && it.entityType == entityType
+        }
 
-    override fun getEntityLogByLogId(auditLogId: Uuid): AuditLog? {
-        return audits.firstOrNull { it.id == auditLogId }
-    }
+    override fun getEntityLogByLogId(auditLogId: Uuid): AuditLog? = audits.firstOrNull { it.id == auditLogId }
 
     private fun readCsvAuditLogs() {
         csvReader.readLines().toAuditLogs().let { updatedTasks ->
@@ -46,7 +49,7 @@ class CsvAuditLogDataSource(private val csvReader: CSVReader, private val csvWri
 
     private fun writeCsvAuditLogs() {
         csvWriter.writeLines(
-            audits.toCsvRows()
+            audits.toCsvRows(),
         )
         readCsvAuditLogs()
     }

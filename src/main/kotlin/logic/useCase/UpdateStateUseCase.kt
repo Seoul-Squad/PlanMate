@@ -8,47 +8,40 @@ import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.ProjectNotFoundException
 import org.example.logic.utils.TaskStateNotFoundException
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 class UpdateStateUseCase(
     private val taskStateRepository: TaskStateRepository,
     private val projectRepository: ProjectRepository,
 ) {
-    @OptIn(ExperimentalUuidApi::class)
     suspend operator fun invoke(
         newStateName: String,
-        stateId: String,
-        projectId: String,
+        stateId: Uuid,
+        projectId: Uuid,
     ) {
-        checkInputValidation(newStateName, stateId, projectId)
-        val project =getProject(projectId)
-        checkStateExists(project.tasksStatesIds,stateId)
+        checkInputValidation(newStateName)
+        val project = getProject(projectId)
+        checkStateExists(project.tasksStatesIds, stateId)
         getProject(projectId)
 
         taskStateRepository.updateTaskState(State(stateId, newStateName))
     }
 
     private fun checkStateExists(
-        states: List<String>,
-        stateId: String,
+        states: List<Uuid>,
+        stateId: Uuid,
     ) {
         if (states.none { state -> state == stateId }) throw TaskStateNotFoundException()
     }
 
-    private suspend fun getProject(projectId: String): Project =
+    private suspend fun getProject(projectId: Uuid): Project =
         projectRepository.getProjectById(projectId)
             ?: throw ProjectNotFoundException()
 
-
-    private fun checkInputValidation(
-        newStateName: String,
-        stateId: String,
-        projectId: String,
-    ) {
+    private fun checkInputValidation(newStateName: String) {
         when {
             newStateName.isBlank() -> throw BlankInputException()
-            stateId.isBlank() -> throw BlankInputException()
-            projectId.isBlank() -> throw BlankInputException()
         }
     }
-
 }

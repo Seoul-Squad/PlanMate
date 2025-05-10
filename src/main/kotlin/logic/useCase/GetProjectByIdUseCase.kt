@@ -2,25 +2,15 @@ package org.example.logic.useCase
 
 import org.example.logic.models.Project
 import org.example.logic.repositries.ProjectRepository
-import org.example.logic.utils.BlankInputException
-import org.example.logic.utils.InvalidInputException
 import org.example.logic.utils.ProjectNotFoundException
-import org.example.logic.utils.isValidId
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 class GetProjectByIdUseCase(
-    private val projectRepository: ProjectRepository
+    private val projectRepository: ProjectRepository,
 ) {
-    suspend operator fun invoke(projectId: String): Project {
-        return projectId
-            .takeIf {validateProjectId(it) }
+    suspend operator fun invoke(projectId: Uuid): Project =
+        projectId
             .let { projectRepository.getProjectById(projectId) ?: throw ProjectNotFoundException() }
-    }
-
-
-    private fun validateProjectId(projectId: String): Boolean{
-        require(projectId.isNotBlank()) { throw BlankInputException() }
-        require(projectId.isValidId()) { throw InvalidInputException() }
-        return true
-    }
-
 }

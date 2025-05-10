@@ -4,25 +4,24 @@ package org.example.data.source.remote.mongo.utils.mapper
 
 import org.example.data.source.remote.models.ProjectDTO
 import org.example.logic.models.Project
+import org.example.logic.utils.toUuid
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
-fun ProjectDTO.toProject(): Project {
-    return Project(
-        id = id,
+fun ProjectDTO.toProject(): Project =
+    Project(
+        id = id.toUuid(),
         name = name,
-        tasksStatesIds = statesIds,
-        auditLogsIds = auditLogsIds.map { Uuid.parse(it) }
+        tasksStatesIds = statesIds.map { it.toUuid() },
+        auditLogsIds = auditLogsIds.map { Uuid.parse(it) },
     )
-}
 
 @OptIn(ExperimentalUuidApi::class)
-fun Project.toProjectDTO(): ProjectDTO {
-    return ProjectDTO(
-        id = id,
+fun Project.toProjectDTO(): ProjectDTO =
+    ProjectDTO(
+        id = id.toHexString(),
         name = name,
-        statesIds = tasksStatesIds,
-        auditLogsIds = auditLogsIds.map { it.toHexString() }
+        statesIds = tasksStatesIds.map { it.toHexString() },
+        auditLogsIds = auditLogsIds.map { it.toHexString() },
     )
-}

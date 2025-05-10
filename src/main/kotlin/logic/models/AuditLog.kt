@@ -9,16 +9,18 @@ import kotlin.uuid.Uuid
 data class AuditLog(
     val id: Uuid = Uuid.random(),
     val createdAt: Instant = Clock.System.now(),
-    val userId: String,
+    val userId: Uuid,
     val userName: String,
-    val entityId: String,
+    val entityId: Uuid,
     val entityType: EntityType,
     val entityName: String,
     val actionType: ActionType,
     val fieldChange: FieldChange? = null,
 ) {
     data class FieldChange(
-        val fieldName: String, val oldValue: String, val newValue: String
+        val fieldName: String,
+        val oldValue: String,
+        val newValue: String,
     ) {
         companion object {
             fun Project.detectChanges(oldProject: Project): List<FieldChange> {
@@ -36,7 +38,7 @@ data class AuditLog(
                 }
 
                 if (this.stateId != oldTask.stateId) {
-                    changes.add(FieldChange("state", oldTask.stateId, this.stateId))
+                    changes.add(FieldChange("state", oldTask.stateId.toHexString(), this.stateId.toHexString()))
                 }
                 return changes
             }
@@ -44,10 +46,13 @@ data class AuditLog(
     }
 
     enum class ActionType {
-        CREATE, UPDATE, DELETE
+        CREATE,
+        UPDATE,
+        DELETE,
     }
 
     enum class EntityType {
-        TASK, PROJECT
+        TASK,
+        PROJECT,
     }
 }

@@ -6,10 +6,11 @@ import org.example.logic.models.AuditLog
 import org.example.logic.models.AuditLogActionType
 import org.example.logic.models.AuditLogEntityType
 import org.example.logic.models.Task
+import org.example.logic.useCase.DeleteTaskUseCase
 import org.example.logic.useCase.GetEntityAuditLogsUseCase
+import org.example.logic.useCase.GetProjectByIdUseCase
 import org.example.logic.useCase.GetStateNameUseCase
 import org.example.logic.useCase.GetTaskByIdUseCase
-import org.example.logic.useCase.DeleteTaskUseCase
 import org.example.logic.useCase.UpdateTaskUseCase
 import org.example.presentation.screens.ShowTaskInformation
 import org.junit.jupiter.api.BeforeEach
@@ -71,19 +72,19 @@ class ShowTaskInformationTest {
         viewer = mockk(relaxed = true)
         reader = mockk(relaxed = true)
 
-
-        showTaskInformation = ShowTaskInformation(
-            tablePrinter = tablePrinter,
-            getTaskByIdUseCase = getTaskByIdUseCase,
-            getStateNameUseCase = getStateNameUseCase,
-            updateTaskUseCase = updateTaskUseCase,
-            deleteTaskUseCase = deleteTaskUseCase,
-            getEntityAuditLogsUseCase = getEntityAuditLogsUseCase,
-            viewer = viewer,
-            reader = reader,
-            getProjectByIdUseCase = getProjectByIdUseCase,
-            onNavigateBack = {}
-        )
+        showTaskInformation =
+            ShowTaskInformation(
+                tablePrinter = tablePrinter,
+                getTaskByIdUseCase = getTaskByIdUseCase,
+                getStateNameUseCase = getStateNameUseCase,
+                updateTaskUseCase = updateTaskUseCase,
+                deleteTaskUseCase = deleteTaskUseCase,
+                getEntityAuditLogsUseCase = getEntityAuditLogsUseCase,
+                viewer = viewer,
+                reader = reader,
+                getProjectByIdUseCase = getProjectByIdUseCase,
+                onNavigateBack = {},
+            )
     }
 
     @Test

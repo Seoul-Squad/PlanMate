@@ -4,11 +4,11 @@ import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
+import org.example.data.repository.sources.remote.RemoteAuditLogDataSource
 import org.example.data.source.remote.models.AuditLogDTO
 import org.example.data.source.remote.mongo.utils.executeMongoOperation
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLog
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLogDTO
-import org.example.data.repository.sources.remote.RemoteAuditLogDataSource
 import org.example.data.utils.Constants.ENTITY_ID
 import org.example.data.utils.Constants.ENTITY_TYPE
 import org.example.data.utils.Constants.ID
@@ -17,35 +17,38 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
-class MongoAuditLogDataSource(private val auditLogCollection: MongoCollection<AuditLogDTO>) : RemoteAuditLogDataSource {
-
-
-    override suspend fun saveAuditLog(auditLog: AuditLog): AuditLog {
-        return executeMongoOperation {
+class MongoAuditLogDataSource(
+    private val auditLogCollection: MongoCollection<AuditLogDTO>,
+) : RemoteAuditLogDataSource {
+    override suspend fun saveAuditLog(auditLog: AuditLog): AuditLog =
+        executeMongoOperation {
             auditLogCollection.insertOne(auditLog.toAuditLogDTO())
             auditLog
         }
-    }
 
     override suspend fun deleteAuditLog(auditLogId: Uuid) {
-        return executeMongoOperation { auditLogCollection.deleteOne(Filters.eq(ID, auditLogId.toHexString())) }
+        executeMongoOperation {
+            auditLogCollection.deleteOne(Filters.eq(ID, auditLogId.toHexString()))
+        }
     }
 
-
-    override suspend fun getEntityLogs(entityId: String, entityType: AuditLog.EntityType): List<AuditLog> {
-        return executeMongoOperation {
-             auditLogCollection.find(
+    override suspend fun getEntityLogs(
+        entityId: String,
+        entityType: AuditLog.EntityType,
+    ): List<AuditLog> =
+        executeMongoOperation {
+            auditLogCollection
+                .find(
                     Filters.and(
                         Filters.eq(ENTITY_ID, entityId),
-                        Filters.eq(ENTITY_TYPE, entityType.name)
-                    )
-                ).toList().map { it.toAuditLog() }
+                        Filters.eq(ENTITY_TYPE, entityType.name),
+                    ),
+                ).toList()
+                .map { it.toAuditLog() }
         }
-    }
 
-    override suspend fun getEntityLogByLogId(auditLogId: Uuid): AuditLog? {
-        return executeMongoOperation {
+    override suspend fun getEntityLogByLogId(auditLogId: Uuid): AuditLog? =
+        executeMongoOperation {
             auditLogCollection.find(Filters.eq(ID, auditLogId.toHexString())).firstOrNull()?.toAuditLog()
         }
-    }
 }

@@ -8,19 +8,16 @@ import org.example.logic.useCase.updateProject.UpdateProjectUseCase
 import org.example.logic.utils.*
 import org.example.presentation.role.ProjectScreensOptions
 import org.koin.java.KoinJavaComponent.getKoin
-import presentation.utils.TablePrinter
-import presentation.utils.cyan
-import presentation.utils.green
+import presentation.utils.*
 import presentation.utils.io.Reader
 import presentation.utils.io.Viewer
-import presentation.utils.red
-import presentation.utils.toReadableMessage
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class ProjectsOverviewUI(
-    private val onNavigateToShowProjectTasksUI: (id: String) -> Unit,
-    private val onNavigateToProjectStatusUI: (id: String) -> Unit,
+    private val onNavigateToShowProjectTasksUI: (id: Uuid) -> Unit,
+    private val onNavigateToProjectStatusUI: (id: Uuid) -> Unit,
     private val onLogout: () -> Unit,
     private val onExit: () -> Unit,
     private val projectScreensOptions: ProjectScreensOptions,
@@ -50,15 +47,14 @@ class ProjectsOverviewUI(
                     return@runBlocking emptyList()
                 }
 
-            showProjectsInTable(projects)
-            return@runBlocking projects
-
-        }catch (e: NoProjectsFoundException) {
+                showProjectsInTable(projects)
+                return@runBlocking projects
+            } catch (e: NoProjectsFoundException) {
                 displayLoadingError(e)
                 return@runBlocking emptyList()
-                }catch (e: Exception) {
-            displayLoadingError(e)
-            return@runBlocking emptyList()
+            } catch (e: Exception) {
+                displayLoadingError(e)
+                return@runBlocking emptyList()
             }
         }
 
@@ -71,7 +67,7 @@ class ProjectsOverviewUI(
         val projectNames = projects.map { it.name }
         tablePrinter.printTable(
             headers = listOf("Index", "Project Name"),
-            columnValues = listOf(indexList, projectNames)
+            columnValues = listOf(indexList, projectNames),
         )
     }
 
@@ -154,16 +150,17 @@ class ProjectsOverviewUI(
     private fun deleteProject(projects: List<Project>) =
         runBlocking {
             try {
-            val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
-            deleteProjectUseCase(project.id)
+                val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
+                deleteProjectUseCase(project.id)
                 viewer.display("Project deleted successfully.".green())
-        } catch (e: Exception) {
-            viewer.display("Failed to delete project: ${e.message}".red())
+            } catch (e: Exception) {
+                viewer.display("Failed to delete project: ${e.message}".red())
+            }
         }
-    }
 
-    private fun showProjectLogsInTable(projects: List<Project>) = runBlocking {
-        try {
+    private fun showProjectLogsInTable(projects: List<Project>) =
+        runBlocking {
+            try {
                 val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
                 val projectLogs = getEntityAuditLogsUseCase(project.id, AuditLog.EntityType.PROJECT)
                 val actions = projectLogs.map { it.toReadableMessage() }
@@ -184,17 +181,18 @@ class ProjectsOverviewUI(
 
     private fun logout() =
         runBlocking {
-        logoutUseCase()
+            logoutUseCase()
             onLogout()
         }
 
-    private fun updateProjectName(projects: List<Project>) = runBlocking {
-        try {
-            val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
-            viewer.display("Enter new project name:")
-            val newName = reader.readString()
-            val updated = project.copy(name = newName)
-            updateProjectUseCase(updated)
+    private fun updateProjectName(projects: List<Project>) =
+        runBlocking {
+            try {
+                val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
+                viewer.display("Enter new project name:")
+                val newName = reader.readString()
+                val updated = project.copy(name = newName)
+                updateProjectUseCase(updated)
                 viewer.display("Project name updated successfully.".green())
             } catch (e: BlankInputException) {
                 viewer.display("Failed to update project name: ${e.message}")
@@ -204,8 +202,8 @@ class ProjectsOverviewUI(
                 viewer.display("Failed to update project name: $PROJECT_NOT_FOUND_EXCEPTION_MESSAGE")
             } catch (e: Exception) {
                 viewer.display("Failed to update project name: ${e.message}".red())
+            }
         }
-    }
 
     enum class MainMenuOption(
         val key: String,
@@ -237,8 +235,8 @@ class ProjectsOverviewUI(
 
     companion object {
         fun create(
-            onNavigateToShowProjectTasksUI: (id: String) -> Unit,
-            onNavigateToProjectStatusUI: (id: String) -> Unit,
+            onNavigateToShowProjectTasksUI: (id: Uuid) -> Unit,
+            onNavigateToProjectStatusUI: (id: Uuid) -> Unit,
             onLogout: () -> Unit,
             onExit: () -> Unit,
             projectScreensOptions: ProjectScreensOptions,

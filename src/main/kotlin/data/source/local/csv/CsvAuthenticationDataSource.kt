@@ -7,7 +7,9 @@ import org.example.data.source.local.csv.utils.mapper.toCsvRow
 import org.example.data.source.local.csv.utils.mapper.toUsers
 import org.example.logic.models.User
 import org.example.logic.utils.UserAlreadyExistsException
+import kotlin.uuid.ExperimentalUuidApi
 
+@OptIn(ExperimentalUuidApi::class)
 class CsvAuthenticationDataSource(
     private val csvWriter: CSVWriter,
     private val csvReader: CSVReader,

@@ -9,7 +9,9 @@ import org.example.logic.models.Project
 import org.example.logic.utils.ProjectCreationFailedException
 import org.example.logic.utils.ProjectNotChangedException
 import java.io.IOException
+import kotlin.uuid.ExperimentalUuidApi
 
+@OptIn(ExperimentalUuidApi::class)
 class CsvProjectDataSource(
     private val csvReader: CSVReader,
     private val csvWriter: CSVWriter,
@@ -40,14 +42,13 @@ class CsvProjectDataSource(
         }
 
     override fun deleteProject(projectId: String) {
-        projects.removeIf { it.id.contains(projectId) }
+        projects.removeIf { it.id.toHexString() == projectId }
         saveToFile()
     }
 
     override fun getAllProjects(): List<Project> = projects
 
-    override fun getProjectById(projectId: String): Project? =
-        projects.find { it.id == projectId }
+    override fun getProjectById(projectId: String): Project? = projects.find { it.id.toHexString() == projectId }
 
     private fun saveToFile() {
         csvWriter.writeLines(projects.toCsvLines())
