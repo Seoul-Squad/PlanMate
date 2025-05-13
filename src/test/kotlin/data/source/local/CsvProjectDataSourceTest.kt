@@ -154,4 +154,49 @@ class CsvProjectDataSourceTest {
         assertThat(result?.id).isEqualTo(projectId)
         assertThat(result?.name).isEqualTo("Project 2")
     }
+
+    @Test
+    fun `getProjectById should return null when project not found`() {
+        val nonExistentId = Uuid.random()
+
+        val result = dataSource.getProjectById(nonExistentId)
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `deleteProject should handle exceptions during save operation`() {
+        val projectIdToDelete = projectId
+        every { mockCsvWriter.writeLines(any()) } throws IOException("Delete failed")
+
+        assertThrows<IOException> {
+            dataSource.deleteProject(projectIdToDelete)
+        }
+    }
+
+    @Test
+    fun `updateProject should add project when it doesn't exist`() {
+        val newProjectId = Uuid.random()
+        val newProject = Project(
+            id = newProjectId,
+            name = "New Project"
+        )
+
+        val result = dataSource.updateProject(newProject)
+
+        assertThat(result).isEqualTo(newProject)
+        verify { mockCsvWriter.writeLines(any()) }
+        val allProjects = dataSource.getAllProjects()
+        assertThat(allProjects).contains(newProject)
+    }
+
+    @Test
+    fun `initialization should handle malformed CSV data gracefully`() {
+        val malformedCsvLines = listOf("header", "invalid,data,format")
+        every { mockCsvReader.readLines() } returns malformedCsvLines
+
+        assertThrows<IllegalArgumentException> {
+            CsvProjectDataSource(mockCsvReader, mockCsvWriter)
+        }
+    }
 }

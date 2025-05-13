@@ -11,6 +11,7 @@ import org.example.logic.useCase.GetTaskByIdUseCase
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.InvalidInputException
 import org.example.logic.utils.TaskNotFoundException
+import org.example.logic.utils.toUuid
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -61,4 +62,6 @@ class GetTaskByIdUseCaseTest {
 
         assertThat(result).isEqualTo(expectedTask)
     }
+
+
 }

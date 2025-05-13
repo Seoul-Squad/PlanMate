@@ -12,11 +12,14 @@ import org.example.data.source.remote.mongo.MongoAuthenticationDataSource
 import org.example.data.source.remote.mongo.utils.mapper.toUserDTO
 import org.example.logic.models.User
 import org.example.logic.models.UserRole
+import org.example.logic.utils.AuthenticationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.flow.emptyFlow
+
 
 @OptIn(ExperimentalUuidApi::class)
 class MongoAuthenticationDataSourceTest {
@@ -76,4 +79,8 @@ class MongoAuthenticationDataSourceTest {
 
             assert(remoteAuthenticationDataSource.getCurrentUser() == null)
         }
+
+
+
+
 }

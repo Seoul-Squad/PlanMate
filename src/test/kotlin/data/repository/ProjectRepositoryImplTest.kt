@@ -1,12 +1,16 @@
 package data.repository
 
 import com.google.common.truth.Truth.assertThat
+import org.junit.jupiter.api.Assertions.fail
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.example.data.repository.ProjectRepositoryImpl
 import org.example.data.repository.sources.remote.RemoteProjectDataSource
 import org.example.data.source.remote.RoleValidationInterceptor
 import org.example.logic.models.Project
+import org.example.logic.utils.ProjectCreationFailedException
+import org.example.logic.utils.ProjectDeletionFailedException
+import org.example.logic.utils.ProjectNotChangedException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.uuid.ExperimentalUuidApi
@@ -117,4 +121,48 @@ class ProjectRepositoryImplTest {
             assertThat(result?.id).isEqualTo(id1)
             assertThat(result?.name).isEqualTo("Project 1")
         }
+
+
+    @Test
+    fun `getProjectById should return null when project not found`() =
+        runTest {
+            val nonExistentId = Uuid.random()
+            coEvery { mockRemoteDataSource.getProjectById(nonExistentId) } returns null
+
+            val result = repository.getProjectById(nonExistentId)
+
+            coVerify(exactly = 1) { mockRemoteDataSource.getProjectById(nonExistentId) }
+            assertThat(result).isNull()
+        }
+
+
+    @Test
+    fun `createProject should throw exception when role validation fails`() = runTest {
+        val newProject = Project(id = id3, name = "Project 3")
+        coEvery { roleValidationInterceptor.validateRole<Project>(any(), any()) } throws ProjectCreationFailedException()
+
+        try {
+            repository.createProject(newProject)
+            fail("Expected ProjectCreationFailedException to be thrown")
+        } catch (e: ProjectCreationFailedException) {
+            assertThat(e).isInstanceOf(ProjectCreationFailedException::class.java)
+        }
+    }
+
+    @Test
+    fun `updateProject should throw exception when role validation fails`() = runTest {
+        val updatedProject = Project(id = id1, name = "Updated Project")
+
+        coEvery { roleValidationInterceptor.validateRole<Project>(any(), any()) } throws ProjectNotChangedException()
+
+        try {
+            repository.updateProject(updatedProject)
+            fail("Expected ProjectNotChangedException to be thrown")
+        } catch (e: ProjectNotChangedException) {
+            assertThat(e).isInstanceOf(ProjectNotChangedException::class.java)
+        }
+    }
+
+
+
 }
