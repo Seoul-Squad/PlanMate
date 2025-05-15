@@ -18,7 +18,5 @@ interface TaskRepository {
 
     fun getTaskById(taskId: Uuid): Single<Task>
 
-    suspend fun getTasksByProjectState(
-        stateId: Uuid
-    ): List<Task>
+    fun getTasksByProjectState(stateId: Uuid): Single<List<Task>>
 }

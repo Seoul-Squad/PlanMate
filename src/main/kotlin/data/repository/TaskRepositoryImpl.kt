@@ -1,6 +1,7 @@
 package org.example.data.repository
 
-import org.example.data.repository.mapper.mapExceptionsToDomainException
+import io.reactivex.rxjava3.core.Single
+import org.example.data.repository.mapper.mapExceptionsToDomainExceptionRx
 import org.example.data.repository.sources.remote.RemoteTaskDataSource
 import org.example.logic.models.Task
 import org.example.logic.repositries.TaskRepository
