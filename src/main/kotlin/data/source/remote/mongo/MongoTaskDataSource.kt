@@ -1,17 +1,19 @@
 package org.example.data.source.remote.mongo
 
 import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
+import com.mongodb.reactivestreams.client.MongoCollection
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Single
 import org.example.data.repository.sources.remote.RemoteTaskDataSource
 import org.example.data.source.remote.models.TaskDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperation
+import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toTask
 import org.example.data.source.remote.mongo.utils.mapper.toTaskDTO
 import org.example.data.utils.Constants.ID
 import org.example.data.utils.Constants.STATE_ID_FIELD
 import org.example.logic.models.Task
+import org.example.logic.utils.TaskNotFoundException
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
