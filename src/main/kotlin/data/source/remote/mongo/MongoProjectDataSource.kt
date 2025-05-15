@@ -1,12 +1,13 @@
 package org.example.data.source.remote.mongo
 
 import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
+import com.mongodb.reactivestreams.client.MongoCollection
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Single
 import org.example.data.repository.sources.remote.RemoteProjectDataSource
 import org.example.data.source.remote.models.ProjectDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperation
+import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toProject
 import org.example.data.source.remote.mongo.utils.mapper.toProjectDTO
 import org.example.data.utils.Constants.ID
@@ -18,31 +19,55 @@ import kotlin.uuid.Uuid
 class MongoProjectDataSource(
     private val projectCollection: MongoCollection<ProjectDTO>,
 ) : RemoteProjectDataSource {
-    override suspend fun createProject(project: Project): Project =
-        executeMongoOperation {
-            projectCollection.insertOne(project.toProjectDTO())
-            project
+    override fun createProject(project: Project): Single<Project> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(projectCollection.insertOne(project.toProjectDTO()))
+                .map {
+                    project
+                }
         }
 
-    override suspend fun updateProject(updatedProject: Project): Project =
-        executeMongoOperation {
-            projectCollection.replaceOne(Filters.eq(ID, updatedProject.id.toHexString()), updatedProject.toProjectDTO())
-            updatedProject
+    override fun updateProject(updatedProject: Project): Single<Project> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(
+                    projectCollection.replaceOne(
+                        Filters.eq(ID, updatedProject.id.toHexString()),
+                        updatedProject.toProjectDTO(),
+                    ),
+                ).map {
+                    updatedProject
+                }
         }
 
-    override suspend fun deleteProject(projectId: Uuid) {
-        executeMongoOperation {
-            projectCollection.deleteOne(Filters.eq(ID, projectId.toHexString()))
+    override fun deleteProject(projectId: Uuid): Completable =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(projectCollection.deleteOne(Filters.eq(ID, projectId.toHexString())))
+                .flatMapCompletable {
+                    Completable.complete()
+                }
+        }
+
+    override fun getAllProjects(): Single<List<Project>> {
+        val publisher = projectCollection.find()
+
+        return executeMongoOperationRx {
+            Flowable
+                .fromPublisher(publisher)
+                .map { projectDTO ->
+                    projectDTO.toProject()
+                }.toList()
         }
     }
 
-    override suspend fun getAllProjects(): List<Project> =
-        executeMongoOperation {
-            projectCollection.find().toList().map { it.toProject() }
-        }
-
-    override suspend fun getProjectById(projectId: Uuid): Project? =
-        executeMongoOperation {
-            projectCollection.find(Filters.eq(ID, projectId.toHexString())).firstOrNull()?.toProject()
+    override fun getProjectById(projectId: Uuid): Single<Project> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(projectCollection.find(Filters.eq(ID, projectId.toHexString())))
+                .map { projectDTO ->
+                    projectDTO.toProject()
+                }
         }
 }
