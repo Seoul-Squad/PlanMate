@@ -28,8 +28,10 @@ class ProjectCreationUI(
             val projectName = reader.readString()
 
             try {
-                val project = createProjectUseCase(projectName)
-                viewer.display("✅ Project '${project.name}' created successfully with ID: ${project.id}".green())
+                createProjectUseCase(projectName)
+                    .subscribe { project ->
+                        viewer.display("✅ Project '${project.name}' created successfully with ID: ${project.id}".green())
+                    }
             } catch (e: BlankInputException) {
                 viewer.display("❌ Error: $BLANK_INPUT_EXCEPTION_MESSAGE")
             } catch (e: ProjectCreationFailedException) {

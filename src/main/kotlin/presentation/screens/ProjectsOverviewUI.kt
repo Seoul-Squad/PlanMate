@@ -3,9 +3,15 @@ package org.example.presentation.screens
 import kotlinx.coroutines.runBlocking
 import org.example.logic.models.AuditLog
 import org.example.logic.models.Project
-import org.example.logic.useCase.*
+import org.example.logic.useCase.DeleteProjectUseCase
+import org.example.logic.useCase.GetAllProjectsUseCase
+import org.example.logic.useCase.GetEntityAuditLogsUseCase
+import org.example.logic.useCase.LogoutUseCase
 import org.example.logic.useCase.updateProject.UpdateProjectUseCase
-import org.example.logic.utils.*
+import org.example.logic.utils.BlankInputException
+import org.example.logic.utils.ProjectNotChangedException
+import org.example.logic.utils.ProjectNotFoundException
+import org.example.logic.utils.TaskNotFoundException
 import org.example.presentation.role.ProjectScreensOptions
 import org.koin.java.KoinJavaComponent.getKoin
 import presentation.utils.*
@@ -36,22 +42,23 @@ class ProjectsOverviewUI(
         showMainMenu()
     }
 
-    private fun showAllProjects(): List<Project> =
-        runBlocking {
-            try {
-                val projects = getAllProjectsUseCase()
+    private fun showAllProjects(): List<Project> {
+        try {
+            val projects =
+                getAllProjectsUseCase()
+                    .blockingCollect()
 
-                if (projects.isEmpty()) {
-                    displayNoProjectsMessage()
-                    return@runBlocking emptyList()
-                }
-                showProjectsInTable(projects)
-                return@runBlocking projects
-            } catch (e: Exception) {
-                displayLoadingError(e)
-                return@runBlocking emptyList()
+            if (projects.isEmpty()) {
+                displayNoProjectsMessage()
+                return emptyList()
             }
+            showProjectsInTable(projects)
+            return projects
+        } catch (e: Exception) {
+            displayLoadingError(e)
+            return emptyList()
         }
+    }
 
     private fun showMainMenu() {
         while (true) {
@@ -76,10 +83,12 @@ class ProjectsOverviewUI(
                     logout()
                     return
                 }
-                MainMenuOption.EXIT ->{
+
+                MainMenuOption.EXIT -> {
                     onExit()
                     return
                 }
+
                 null -> viewer.display("Invalid input. Please try again.".red())
             }
         }
@@ -112,10 +121,9 @@ class ProjectsOverviewUI(
         return projects[index]
     }
 
-    private fun displayLoadingError(e: Exception) {
+    private fun displayLoadingError(e: Throwable) {
         viewer.display("Failed to load projects: ${e.message}".red())
     }
-
 
     private fun showProjectDetails(projects: List<Project>) {
         val project = getProjectByUserIndexSelection(projects) ?: return

@@ -13,6 +13,7 @@ import org.example.logic.utils.InvalidInputException
 import org.example.logic.utils.ProjectNotFoundException
 import org.koin.java.KoinJavaComponent.getKoin
 import presentation.utils.TablePrinter
+import presentation.utils.blockingCollect
 import presentation.utils.cyan
 import presentation.utils.io.Reader
 import presentation.utils.io.Viewer
@@ -44,7 +45,7 @@ class ProjectTasksUI(
         runBlocking {
             viewer.display("Loading...")
             try {
-                project = getProjectByIdUseCase(projectId)
+                project = getProjectByIdUseCase(projectId).blockingCollect()
                 projectStates = getProjectStatesUseCase(projectId)
                 loadTasks()
             } catch (e: Exception) {
@@ -128,7 +129,7 @@ class ProjectTasksUI(
 
         tablePrinter.printTable(
             headers = listOf("Index", "Task Name"),
-            columnValues = listOf(indices, titles)
+            columnValues = listOf(indices, titles),
         )
 
         while (true) {
