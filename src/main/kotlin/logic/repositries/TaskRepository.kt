@@ -1,20 +1,22 @@
 package org.example.logic.repositries
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.Task
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 interface TaskRepository {
-    suspend fun createTask(task: Task): Task
+    fun createTask(task: Task): Single<Task>
 
-    suspend fun updateTask(updatedTask: Task): Task
+    fun updateTask(updatedTask: Task): Single<Task>
 
-    suspend fun deleteTask(taskId: Uuid)
+    fun deleteTask(taskId: Uuid): Completable
 
-    suspend fun getAllTasks(): List<Task>
+    fun getAllTasks(): Single<List<Task>>
 
-    suspend fun getTaskById(taskId: Uuid): Task?
+    fun getTaskById(taskId: Uuid): Single<Task>
 
     suspend fun getTasksByProjectState(
         stateId: Uuid

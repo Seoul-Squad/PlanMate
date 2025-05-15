@@ -12,29 +12,33 @@ import kotlin.uuid.Uuid
 class TaskRepositoryImpl(
     private val remoteTaskDataSource: RemoteTaskDataSource,
 ) : TaskRepository {
-    override suspend fun createTask(task: Task): Task = mapExceptionsToDomainException(TaskCreationFailedException()) {
-        remoteTaskDataSource.createTask(task)
-    }
+    override fun createTask(task: Task): Single<Task> =
+        mapExceptionsToDomainExceptionRx(TaskCreationFailedException()) {
+            remoteTaskDataSource.createTask(task)
+        }
 
-    override suspend fun updateTask(updatedTask: Task): Task =
-        mapExceptionsToDomainException(TaskNotChangedException()) {
+    override fun updateTask(updatedTask: Task): Single<Task> =
+        mapExceptionsToDomainExceptionRx(TaskNotChangedException()) {
             remoteTaskDataSource.updateTask(updatedTask)
         }
 
-    override suspend fun deleteTask(taskId: Uuid) = mapExceptionsToDomainException(TaskDeletionFailedException()) {
-        remoteTaskDataSource.deleteTask(taskId)
-    }
+    override fun deleteTask(taskId: Uuid) =
+        mapExceptionsToDomainExceptionRx(TaskDeletionFailedException()) {
+            remoteTaskDataSource.deleteTask(taskId)
+        }
 
-    override suspend fun getAllTasks(): List<Task> = mapExceptionsToDomainException(NoTasksFoundException()) {
-        remoteTaskDataSource.getAllTasks()
-    }
+    override fun getAllTasks(): Single<List<Task>> =
+        mapExceptionsToDomainExceptionRx(NoTasksFoundException()) {
+            remoteTaskDataSource.getAllTasks()
+        }
 
-    override suspend fun getTaskById(taskId: Uuid): Task? = mapExceptionsToDomainException(NoTaskFoundException()) {
-        remoteTaskDataSource.getTaskById(taskId)
-    }
+    override fun getTaskById(taskId: Uuid): Single<Task> =
+        mapExceptionsToDomainExceptionRx(NoTaskFoundException()) {
+            remoteTaskDataSource.getTaskById(taskId)
+        }
 
-    override suspend fun getTasksByProjectState(stateId: Uuid): List<Task> =
-        mapExceptionsToDomainException(NoTaskFoundException()) {
+    override fun getTasksByProjectState(stateId: Uuid): Single<List<Task>> =
+        mapExceptionsToDomainExceptionRx(NoTaskFoundException()) {
             remoteTaskDataSource.getTasksByProjectState(stateId)
         }
 }

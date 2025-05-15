@@ -19,33 +19,72 @@ import kotlin.uuid.Uuid
 class MongoTaskDataSource(
     private val mongoClient: MongoCollection<TaskDTO>,
 ) : RemoteTaskDataSource {
-    override suspend fun createTask(task: Task): Task = executeMongoOperation {
-        mongoClient.insertOne(task.toTaskDTO())
-        task
-    }
+    override fun createTask(task: Task): Single<Task> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(mongoClient.insertOne(task.toTaskDTO()))
+                .map {
+                    task
+                }
+        }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun updateTask(updatedTask: Task): Task = executeMongoOperation {
-        mongoClient.replaceOne(Filters.eq(ID, updatedTask.id.toHexString()), updatedTask.toTaskDTO())
-        updatedTask
-    }
+    override fun updateTask(updatedTask: Task): Single<Task> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(
+                    mongoClient.replaceOne(
+                        Filters.eq(ID, updatedTask.id.toHexString()),
+                        updatedTask.toTaskDTO(),
+                    ),
+                ).map {
+                    updatedTask
+                }
+        }
 
-    override suspend fun deleteTask(taskId: Uuid) {
-        executeMongoOperation {
-            mongoClient.deleteOne(Filters.eq(ID, taskId.toHexString()))
+    override fun deleteTask(taskId: Uuid): Completable =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(mongoClient.deleteOne(Filters.eq(ID, taskId.toHexString())))
+                .flatMapCompletable {
+                    Completable.complete()
+                }
+        }
+
+    override fun getAllTasks(): Single<List<Task>> {
+        val publisher = mongoClient.find()
+        return executeMongoOperationRx {
+            Flowable
+                .fromPublisher(publisher)
+                .map { taskDto ->
+                    taskDto.toTask()
+                }.toList()
         }
     }
 
-    override suspend fun getAllTasks(): List<Task> = executeMongoOperation {
-        mongoClient.find().toList().map { it.toTask() } }
+    override fun getTaskById(taskId: Uuid): Single<Task> =
+        executeMongoOperationRx {
+            Single
+                .fromPublisher(mongoClient.find(Filters.eq(ID, taskId.toHexString())))
+                .map {
+                    it.toTask()
+                }.onErrorResumeNext { error ->
+                    if (error is NoSuchElementException) {
+                        Single.error(TaskNotFoundException())
+                    } else {
+                        Single.error(error)
+                    }
+                }
+        }
 
-    override suspend fun getTaskById(taskId: Uuid): Task? = executeMongoOperation {
-        mongoClient.find(Filters.eq(ID, taskId.toHexString())).firstOrNull()?.toTask()
-    }
-
-    override suspend fun getTasksByProjectState(stateId: Uuid): List<Task> = executeMongoOperation {
-        mongoClient.find(
-            Filters.eq(STATE_ID_FIELD, stateId.toHexString())
-        ).toList().map { it.toTask() }
+    override fun getTasksByProjectState(stateId: Uuid): Single<List<Task>> {
+        val publisher = mongoClient.find(Filters.eq(STATE_ID_FIELD, stateId.toHexString()))
+        return executeMongoOperationRx {
+            Flowable
+                .fromPublisher(publisher)
+                .map { taskDto ->
+                    taskDto.toTask()
+                }.toList()
+        }
     }
 }
