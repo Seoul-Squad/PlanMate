@@ -1,10 +1,10 @@
 package org.example.presentation.screens
 
-import kotlinx.coroutines.runBlocking
 import org.example.logic.models.UserRole
 import org.example.logic.useCase.LoginUserUseCase
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.UserNotFoundException
+import presentation.utils.blockingCollect
 import presentation.utils.cyan
 import presentation.utils.io.Reader
 import presentation.utils.io.Viewer
@@ -15,14 +15,13 @@ class LoginUI(
     private val onNavigateToShowAllProjects: (userRole: UserRole) -> Unit,
     private val loginUserUseCase: LoginUserUseCase,
     private val reader: Reader,
-    private val viewer: Viewer
+    private val viewer: Viewer,
 ) {
-
     init {
         run()
     }
 
-    private fun run() = runBlocking{
+    private fun run() {
         viewer.display("====================================".cyan())
         viewer.display(" Welcome to the Task Management System ")
         viewer.display("====================================".cyan())
@@ -35,7 +34,7 @@ class LoginUI(
             val password = reader.readString()
 
             try {
-                val user = loginUserUseCase(username, password)
+                val user = loginUserUseCase(username, password).blockingCollect()
                 when (user.role) {
                     UserRole.ADMIN -> onNavigateToAdminHome()
                     UserRole.USER -> onNavigateToShowAllProjects(user.role)

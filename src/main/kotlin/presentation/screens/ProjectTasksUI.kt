@@ -1,6 +1,5 @@
 package org.example.presentation.screens
 
-import kotlinx.coroutines.runBlocking
 import logic.useCase.CreateTaskUseCase
 import org.example.logic.models.Project
 import org.example.logic.models.ProjectState
@@ -41,29 +40,27 @@ class ProjectTasksUI(
         loadProject()
     }
 
-    private fun loadProject() =
-        runBlocking {
-            viewer.display("Loading...")
-            try {
-                project = getProjectByIdUseCase(projectId).blockingCollect()
-                projectStates = getProjectStatesUseCase(projectId)
-                loadTasks()
-            } catch (e: Exception) {
-                handleError(e)
-            }
+    private fun loadProject() {
+        viewer.display("Loading...")
+        try {
+            project = getProjectByIdUseCase(projectId).blockingCollect()
+            projectStates = getProjectStatesUseCase(projectId).blockingCollect()
+            loadTasks()
+        } catch (e: Exception) {
+            handleError(e)
         }
+    }
 
-    private fun loadTasks() =
-        runBlocking {
-            try {
-                projectTasks = getProjectTasksUseCase(projectId)
-                getUserSelectedOption()
-            } catch (e: Exception) {
-                handleError(e)
-            }
+    private fun loadTasks() {
+        try {
+            projectTasks = getProjectTasksUseCase(projectId).blockingCollect()
+            getUserSelectedOption()
+        } catch (e: Exception) {
+            handleError(e)
         }
+    }
 
-    private suspend fun displaySwimLanesTasksTable() {
+    private fun displaySwimLanesTasksTable() {
         val (statesHeaders, tasksColumns) = getTableHeadersAndColumns()
         tablePrinter.printTable(
             headers = statesHeaders,
@@ -71,9 +68,9 @@ class ProjectTasksUI(
         )
     }
 
-    private suspend fun getTableHeadersAndColumns(): Pair<List<String>, List<List<String>>> {
+    private fun getTableHeadersAndColumns(): Pair<List<String>, List<List<String>>> {
         val groupedTasksByState =
-            getProjectStatesUseCase(projectId).map { state ->
+            getProjectStatesUseCase(projectId).blockingCollect().map { state ->
                 val tasksForState = projectTasks.filter { it.stateId == state.id }
                 state to tasksForState
             }
@@ -82,7 +79,7 @@ class ProjectTasksUI(
         return statesHeaders to tasksColumns
     }
 
-    private suspend fun getUserSelectedOption() {
+    private fun getUserSelectedOption() {
         while (true) {
             displaySwimLanesTasksTable()
             displayOptions()
@@ -145,17 +142,16 @@ class ProjectTasksUI(
         }
     }
 
-    private fun startCreateTaskFlow() =
-        runBlocking {
-            val taskName = readTaskName()
-            val stateId = readSelectedState()
-            try {
-                createTaskUseCase(taskName, projectId, stateId)
-                loadTasks()
-            } catch (e: Exception) {
-                handleError(e)
-            }
+    private fun startCreateTaskFlow() {
+        val taskName = readTaskName()
+        val stateId = readSelectedState()
+        try {
+            createTaskUseCase(taskName, projectId, stateId).blockingCollect()
+            loadTasks()
+        } catch (e: Exception) {
+            handleError(e)
         }
+    }
 
     private fun readTaskName(): String {
         while (true) {

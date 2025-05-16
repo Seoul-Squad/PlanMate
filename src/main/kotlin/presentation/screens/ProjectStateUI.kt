@@ -1,15 +1,15 @@
 package org.example.presentation.screens
 
-import kotlinx.coroutines.runBlocking
 import org.example.logic.useCase.CreateProjectStateUseCase
 import org.example.logic.useCase.DeleteProjectStateUseCase
 import org.example.logic.useCase.GetProjectStatesUseCase
 import org.example.logic.useCase.UpdateProjectStateUseCase
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.ProjectNotFoundException
-import org.example.logic.utils.TaskStateNotFoundException
+import org.example.logic.utils.ProjectStateNotFoundException
 import org.koin.java.KoinJavaComponent.getKoin
 import presentation.utils.TablePrinter
+import presentation.utils.blockingCollect
 import presentation.utils.cyan
 import presentation.utils.green
 import presentation.utils.io.Reader
@@ -64,96 +64,92 @@ class ProjectStateUI(
         viewer.display("Select an option:")
     }
 
-    private fun showProjectStates() =
-        runBlocking {
-            try {
-                val projectStates = getProjectStatesUseCase(projectId)
-                viewer.display("\n========== Project States ==========".cyan())
+    private fun showProjectStates() {
+        try {
+            val projectStates = getProjectStatesUseCase(projectId).blockingCollect()
+            viewer.display("\n========== Project States ==========".cyan())
 
-                val indexList = projectStates.indices.map { (it + 1).toString() }
-                val stateTitles = projectStates.map { it.title }
+            val indexList = projectStates.indices.map { (it + 1).toString() }
+            val stateTitles = projectStates.map { it.title }
 
-                tablePrinter.printTable(
-                    headers = listOf("Index", "State Title"),
-                    columnValues = listOf(indexList, stateTitles),
-                )
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to fetch project states: ${e.message}")
-            } catch (e: Exception) {
-                viewer.display("Failed to fetch project states: ${e.message}".red())
-            }
+            tablePrinter.printTable(
+                headers = listOf("Index", "State Title"),
+                columnValues = listOf(indexList, stateTitles),
+            )
+        } catch (e: ProjectNotFoundException) {
+            viewer.display("Failed to fetch project states: ${e.message}")
+        } catch (e: Exception) {
+            viewer.display("Failed to fetch project states: ${e.message}".red())
         }
+    }
 
-    private fun createProjectState() =
-        runBlocking {
-            try {
-                viewer.display("Enter the new state name:")
-                val stateName = reader.readString()
-                createProjectStateUseCase(projectId, stateName)
-                viewer.display("State created successfully.".green())
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to create state: Project not found")
-            } catch (e: BlankInputException) {
-                viewer.display("Input cannot be blank")
-            } catch (e: Exception) {
-                viewer.display("Failed to create state: ${e.message}".red())
-            }
+    private fun createProjectState() {
+        try {
+            viewer.display("Enter the new state name:")
+            val stateName = reader.readString()
+            createProjectStateUseCase(projectId, stateName).blockingCollect()
+            viewer.display("State created successfully.".green())
+        } catch (e: ProjectNotFoundException) {
+            viewer.display("Failed to create state: Project not found")
+        } catch (e: BlankInputException) {
+            viewer.display("Input cannot be blank")
+        } catch (e: Exception) {
+            viewer.display("Failed to create state: ${e.message}".red())
         }
+    }
 
-    private fun updateProjectState() =
-        runBlocking {
-            try {
-                val projectStates = getProjectStatesUseCase(projectId)
+    private fun updateProjectState() {
+        try {
+            val projectStates = getProjectStatesUseCase(projectId).blockingCollect()
 
-                viewer.display("Enter the index of the state to update:".cyan())
-                val input = reader.readString()
-                val stateIndex = input.toIntOrNull()?.minus(1)
+            viewer.display("Enter the index of the state to update:".cyan())
+            val input = reader.readString()
+            val stateIndex = input.toIntOrNull()?.minus(1)
 
-                if (stateIndex == null || stateIndex !in projectStates.indices) {
-                    viewer.display("Invalid index. Please try again.".red())
-                    return@runBlocking
-                }
-
-                val stateId = projectStates[stateIndex].id
-                viewer.display("Enter the new state name:".cyan())
-                val newStateName = reader.readString()
-
-                updateProjectStateUseCase(newStateName, stateId, projectId)
-                viewer.display("State updated successfully.".green())
-            } catch (e: TaskStateNotFoundException) {
-                viewer.display("Failed to update state: State not found")
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to update state: Project not found")
-            } catch (e: BlankInputException) {
-                viewer.display("Input cannot be blank")
-            } catch (e: Exception) {
-                viewer.display("Failed to update state: ${e.message}".red())
+            if (stateIndex == null || stateIndex !in projectStates.indices) {
+                viewer.display("Invalid index. Please try again.".red())
+                return
             }
+
+            val stateId = projectStates[stateIndex].id
+            viewer.display("Enter the new state name:".cyan())
+            val newStateName = reader.readString()
+
+            updateProjectStateUseCase(newStateName, stateId, projectId)
+            viewer.display("State updated successfully.".green())
+        } catch (e: ProjectStateNotFoundException) {
+            viewer.display("Failed to update state: State not found")
+        } catch (e: ProjectNotFoundException) {
+            viewer.display("Failed to update state: Project not found")
+        } catch (e: BlankInputException) {
+            viewer.display("Input cannot be blank")
+        } catch (e: Exception) {
+            viewer.display("Failed to update state: ${e.message}".red())
         }
+    }
 
-    private fun deleteProjectState() =
-        runBlocking {
-            try {
-                val projectStates = getProjectStatesUseCase(projectId)
+    private fun deleteProjectState() {
+        try {
+            val projectStates = getProjectStatesUseCase(projectId).blockingCollect()
 
-                viewer.display("Enter the index of the state to delete:".cyan())
-                val input = reader.readString()
-                val stateIndex = input.toIntOrNull()?.minus(1)
+            viewer.display("Enter the index of the state to delete:".cyan())
+            val input = reader.readString()
+            val stateIndex = input.toIntOrNull()?.minus(1)
 
-                if (stateIndex == null || stateIndex !in projectStates.indices) {
-                    viewer.display("Invalid index. Please try again.".red())
-                    return@runBlocking
-                }
-
-                val stateId = projectStates[stateIndex].id
-                deleteProjectStateUseCase(stateId, projectId)
-                viewer.display("State deleted successfully.".green())
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to delete state: Project not found")
-            } catch (e: Exception) {
-                viewer.display("Failed to delete state: ${e.message}".red())
+            if (stateIndex == null || stateIndex !in projectStates.indices) {
+                viewer.display("Invalid index. Please try again.".red())
+                return
             }
+
+            val stateId = projectStates[stateIndex].id
+            deleteProjectStateUseCase(stateId, projectId)
+            viewer.display("State deleted successfully.".green())
+        } catch (e: ProjectNotFoundException) {
+            viewer.display("Failed to delete state: Project not found")
+        } catch (e: Exception) {
+            viewer.display("Failed to delete state: ${e.message}".red())
         }
+    }
 
     companion object {
         fun create(

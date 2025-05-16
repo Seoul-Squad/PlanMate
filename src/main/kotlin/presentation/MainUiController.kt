@@ -58,6 +58,9 @@ class MainUiController(
                     onNavigateToProjectStatusUI = { projectId ->
                         navigationController.navigateTo(Route.ProjectStatusRoute(projectId = projectId))
                     },
+                    onNavigateBack = {
+                        navigationController.popBackStack()
+                    },
                     onLogout = {
                         navigationController.popBackStack()
                     },
@@ -65,6 +68,7 @@ class MainUiController(
                         onFinish()
                     },
                     projectScreensOptions = userFactory(route.userRole),
+                    userRole = route.userRole,
                 )
             }
 
@@ -104,10 +108,10 @@ class MainUiController(
             }
 
             is Route.TaskDetailsRoute -> {
-                TaskInformationUI.create(
-                    onNavigateBack = navigationController::popBackStack
-
-                ).showTaskInformation(taskId = route.taskId)
+                TaskInformationUI
+                    .create(
+                        onNavigateBack = navigationController::popBackStack,
+                    ).showTaskInformation(taskId = route.taskId)
             }
         }
     }
