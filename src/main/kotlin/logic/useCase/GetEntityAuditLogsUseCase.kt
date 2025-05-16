@@ -1,5 +1,6 @@
 package org.example.logic.useCase
 
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.AuditLog
 import org.example.logic.repositries.AuditLogRepository
 import org.example.logic.utils.ProjectNotFoundException
@@ -11,17 +12,12 @@ import kotlin.uuid.Uuid
 class GetEntityAuditLogsUseCase(
     private val auditLogRepository: AuditLogRepository,
 ) {
-    suspend operator fun invoke(
+    operator fun invoke(
         entityId: Uuid,
         entityType: AuditLog.EntityType,
-    ): List<AuditLog> =
-        auditLogRepository
-            .getEntityLogs(entityId, entityType)
-            .takeIf {
-                it.isNotEmpty()
-            } ?: throw getEntityNotFoundException(entityType)
+    ): Single<List<AuditLog>> = auditLogRepository.getEntityLogs(entityId, entityType)
 
-    private fun getEntityNotFoundException(entityType: AuditLog.EntityType) =
+    private fun getEntityNotFoundException(entityType: AuditLog.EntityType): Throwable =
         when (entityType) {
             AuditLog.EntityType.TASK -> TaskNotFoundException()
             AuditLog.EntityType.PROJECT -> ProjectNotFoundException()

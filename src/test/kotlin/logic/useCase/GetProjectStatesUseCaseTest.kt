@@ -1,99 +1,100 @@
 package logic.useCase
 
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.observers.TestObserver
 import org.example.logic.models.ProjectState
 import org.example.logic.repositries.ProjectStateRepository
 import org.example.logic.useCase.GetProjectStatesUseCase
 import org.example.logic.utils.ProjectNotFoundException
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.assertThrows
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class GetProjectStatesUseCaseTest {
- private lateinit var projectStateRepository: ProjectStateRepository
- private lateinit var getProjectStatesUseCase: GetProjectStatesUseCase
+    private lateinit var projectStateRepository: ProjectStateRepository
+    private lateinit var getProjectStatesUseCase: GetProjectStatesUseCase
 
- private val projectId = Uuid.random()
- private val states = listOf(
-  ProjectState(
-   id = Uuid.random(),
-   title = "To Do",
-   projectId = projectId
-  ),
-  ProjectState(
-   id = Uuid.random(),
-   title = "In Progress",
-   projectId = projectId
-  ),
-  ProjectState(
-   id = Uuid.random(),
-   title = "Done",
-   projectId = projectId
-  )
- )
+    private val projectId = Uuid.random()
+    private val states =
+        listOf(
+            ProjectState(
+                id = Uuid.random(),
+                title = "To Do",
+                projectId = projectId,
+            ),
+            ProjectState(
+                id = Uuid.random(),
+                title = "In Progress",
+                projectId = projectId,
+            ),
+            ProjectState(
+                id = Uuid.random(),
+                title = "Done",
+                projectId = projectId,
+            ),
+        )
 
- @BeforeEach
- fun setUp() {
-  projectStateRepository = mockk(relaxed = true)
-  getProjectStatesUseCase = GetProjectStatesUseCase(projectStateRepository)
- }
+    @BeforeEach
+    fun setUp() {
+        projectStateRepository = mockk(relaxed = true)
+        getProjectStatesUseCase = GetProjectStatesUseCase(projectStateRepository)
+    }
 
- @Test
- fun `should return list of project states when project exists`() = runTest {
-  
-  coEvery { projectStateRepository.getProjectStates(projectId) } returns states
+    @Test
+    fun `should return list of project states when project exists`() {
+        every { projectStateRepository.getProjectStates(projectId) } returns Single.just(states)
 
-  
-  val result = getProjectStatesUseCase(projectId)
+        val testObserver: TestObserver<List<ProjectState>> = getProjectStatesUseCase(projectId).test()
 
-  
-  assertEquals(states, result)
-  coVerify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
- }
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue(states)
 
- @Test
- fun `should return empty list when project has no states`() = runTest {
-  
-  coEvery { projectStateRepository.getProjectStates(projectId) } returns emptyList()
+        verify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
+    }
 
-  
-  val result = getProjectStatesUseCase(projectId)
+    @Test
+    fun `should return empty list when project has no states`() {
+        every { projectStateRepository.getProjectStates(projectId) } returns Single.just(emptyList())
 
-  
-  assertEquals(emptyList<ProjectState>(), result)
-  coVerify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
- }
+        val testObserver: TestObserver<List<ProjectState>> = getProjectStatesUseCase(projectId).test()
 
- @Test
- fun `should propagate repository exceptions`() = runTest {
-  
-  coEvery { projectStateRepository.getProjectStates(projectId) } throws ProjectNotFoundException()
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue(emptyList<ProjectState>())
 
-  
-  assertThrows<ProjectNotFoundException> {
-   getProjectStatesUseCase(projectId)
-  }
-  coVerify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
- }
+        verify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
+    }
 
- @Test
- fun `should handle repository runtime exceptions`() = runTest {
-  
-  val errorMessage = "Database connection failed"
-  coEvery { projectStateRepository.getProjectStates(projectId) } throws RuntimeException(errorMessage)
+    @Test
+    fun `should propagate repository exceptions`() {
+        val exception = ProjectNotFoundException()
+        every { projectStateRepository.getProjectStates(projectId) } returns Single.error(exception)
 
- 
-  val exception = assertThrows<RuntimeException> {
-   getProjectStatesUseCase(projectId)
-  }
-  assertEquals(errorMessage, exception.message)
-  coVerify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
- }
+        val testObserver: TestObserver<List<ProjectState>> = getProjectStatesUseCase(projectId).test()
+
+        testObserver.assertError(ProjectNotFoundException::class.java)
+        testObserver.assertNotComplete()
+
+        verify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
+    }
+
+    @Test
+    fun `should handle repository runtime exceptions`() {
+        val errorMessage = "Database connection failed"
+        val runtimeException = RuntimeException(errorMessage)
+        every { projectStateRepository.getProjectStates(projectId) } returns Single.error(runtimeException)
+
+        val testObserver: TestObserver<List<ProjectState>> = getProjectStatesUseCase(projectId).test()
+
+        testObserver.assertError(RuntimeException::class.java)
+        testObserver.assertNotComplete()
+
+        verify(exactly = 1) { projectStateRepository.getProjectStates(projectId) }
+    }
 }

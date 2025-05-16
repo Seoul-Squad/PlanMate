@@ -1,6 +1,10 @@
 package presentation.screens
 
-import io.mockk.*
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import mockdata.createState
 import org.example.logic.useCase.CreateProjectStateUseCase
 import org.example.logic.useCase.DeleteProjectStateUseCase
@@ -8,7 +12,7 @@ import org.example.logic.useCase.GetProjectStatesUseCase
 import org.example.logic.useCase.UpdateProjectStateUseCase
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.ProjectNotFoundException
-import org.example.logic.utils.TaskStateNotFoundException
+import org.example.logic.utils.ProjectStateNotFoundException
 import org.example.presentation.screens.ProjectStateUI
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -64,7 +68,7 @@ class ProjectStateUITest {
     // On creating
     @Test
     fun `should create project state when user selects create option`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("1", "New State", "4")
 
         createUI()
@@ -75,9 +79,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fails to find the project on creating state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("1", "New State", "4")
-        coEvery { createProjectStateUseCase(ids[0], "New State") } throws ProjectNotFoundException()
+        every { createProjectStateUseCase(ids[0], "New State") } throws ProjectNotFoundException()
 
         createUI()
 
@@ -87,9 +91,9 @@ class ProjectStateUITest {
     @Test
     fun `should show error message when given blank state name on creating state`() {
         val blankStateName = ""
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("1", blankStateName, "4")
-        coEvery { createProjectStateUseCase(ids[0], blankStateName) } throws BlankInputException()
+        every { createProjectStateUseCase(ids[0], blankStateName) } throws BlankInputException()
 
         createUI()
 
@@ -98,9 +102,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when general exception occurs on creating state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("1", "New State", "4")
-        coEvery { createProjectStateUseCase(ids[0], "New State") } throws Exception()
+        every { createProjectStateUseCase(ids[0], "New State") } throws Exception()
 
         createUI()
 
@@ -110,7 +114,7 @@ class ProjectStateUITest {
     // On updating
     @Test
     fun `should update project state when user selects update option`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", "1", "Update task", "4")
 
         createUI()
@@ -121,9 +125,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fails to find the state on updating state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", "1", "Updated State", "4")
-        coEvery { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws TaskStateNotFoundException()
+        every { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws ProjectStateNotFoundException()
 
         createUI()
 
@@ -132,9 +136,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fails to find the project on updating state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", "1", "Updated State", "4")
-        coEvery { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws ProjectNotFoundException()
+        every { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws ProjectNotFoundException()
 
         createUI()
 
@@ -144,9 +148,15 @@ class ProjectStateUITest {
     @Test
     fun `should show error message when given blank state name on updating state`() {
         val blankStateName = ""
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", "1", blankStateName, "4")
-        coEvery { updateProjectStateUseCase(sampleStates[0].title, sampleStates[0].id, ids[0]) } throws BlankInputException()
+        every {
+            updateProjectStateUseCase(
+                sampleStates[0].title,
+                sampleStates[0].id,
+                ids[0],
+            )
+        } throws BlankInputException()
 
         createUI()
 
@@ -155,9 +165,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when general exception occurs on updating state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", "1", "Updated State", "4")
-        coEvery { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws Exception()
+        every { updateProjectStateUseCase(any(), sampleStates[0].id, ids[0]) } throws Exception()
 
         createUI()
 
@@ -167,7 +177,7 @@ class ProjectStateUITest {
     @ParameterizedTest
     @ValueSource(strings = ["5", "a", ""])
     fun `should show error message when given invalid index on updating state`(input: String) {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("2", input, "Updated State", "4")
 
         createUI()
@@ -178,7 +188,7 @@ class ProjectStateUITest {
     // On deleting
     @Test
     fun `should delete project state when user selects delete option`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("3", "1", "4")
 
         createUI()
@@ -189,9 +199,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fails to find the state on deleting state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("3", "1", "4")
-        coEvery { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws TaskStateNotFoundException()
+        every { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws ProjectStateNotFoundException()
 
         createUI()
 
@@ -200,9 +210,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fails to find the project on deleting state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("3", "1", "4")
-        coEvery { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws ProjectNotFoundException()
+        every { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws ProjectNotFoundException()
 
         createUI()
 
@@ -211,9 +221,9 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when general exception occurs on deleting state`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("3", "1", "4")
-        coEvery { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws Exception()
+        every { deleteProjectStateUseCase(sampleStates[0].id, ids[0]) } throws Exception()
 
         createUI()
 
@@ -223,7 +233,7 @@ class ProjectStateUITest {
     @ParameterizedTest
     @ValueSource(strings = ["5", "a", ""])
     fun `should show error message when given invalid index on deleting state`(input: String) {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("3", input, "4")
 
         createUI()
@@ -233,7 +243,7 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when input is invalid`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returnsMany listOf("ew", "4")
 
         createUI()
@@ -244,7 +254,7 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when no project found`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } throws ProjectNotFoundException()
+        every { getProjectStatesUseCase(ids[0]) } throws ProjectNotFoundException()
         every { reader.readString() } returns "4"
 
         createUI()
@@ -254,7 +264,7 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when no project found qwe`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } throws ProjectNotFoundException()
+        every { getProjectStatesUseCase(ids[0]) } returns Single.error(ProjectNotFoundException())
         every { reader.readString() } returns "4"
 
         createUI()
@@ -264,7 +274,7 @@ class ProjectStateUITest {
 
     @Test
     fun `should navigate back when user selects back option`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } returns sampleStates
+        every { getProjectStatesUseCase(ids[0]) } returns Single.just(sampleStates)
         every { reader.readString() } returns "4"
 
         createUI()
@@ -274,7 +284,7 @@ class ProjectStateUITest {
 
     @Test
     fun `should show error message when fetching project fails`() {
-        coEvery { getProjectStatesUseCase(ids[0]) } throws RuntimeException()
+        every { getProjectStatesUseCase(ids[0]) } returns Single.error(RuntimeException())
         every { reader.readString() } returns "4"
 
         createUI()

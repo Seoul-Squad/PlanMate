@@ -1,24 +1,23 @@
 package logic.useCase
 
-import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.test.runTest
-import mockdata.createProject
+import io.reactivex.rxjava3.core.Single
+import org.example.logic.models.AuditLog
+import org.example.logic.models.Project
+import org.example.logic.models.ProjectState
 import org.example.logic.repositries.ProjectRepository
 import org.example.logic.repositries.ProjectStateRepository
 import org.example.logic.useCase.CreateAuditLogUseCase
 import org.example.logic.useCase.CreateProjectUseCase
 import org.example.logic.useCase.Validation
-import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.ProjectCreationFailedException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class CreateProjectUseCaseTest {
@@ -27,6 +26,10 @@ class CreateProjectUseCaseTest {
     private lateinit var projectStateRepository: ProjectStateRepository
     private lateinit var validation: Validation
     private lateinit var createProjectUseCase: CreateProjectUseCase
+
+    private val projectName = "Test Project"
+    private val dummyProjectId = Uuid.random()
+    private val dummyProject = Project(id = dummyProjectId, name = projectName)
 
     @BeforeEach
     fun setUp() {
@@ -44,38 +47,45 @@ class CreateProjectUseCaseTest {
     }
 
     @Test
-    fun `should return created project when the input is not blank and user is an admin`() =
-        runTest {
-            val projectName = "Test Project"
-            coEvery { projectRepository.createProject(any()) } returns createProject(name = projectName)
+    fun `should return created project when input is valid`() {
+        every { validation.validateProjectNameOrThrow(projectName) } returns Unit
 
-            val createdProject = createProjectUseCase(projectName)
+        every { projectRepository.createProject(any()) } returns Single.just(dummyProject)
 
-            verify { validation.validateProjectNameOrThrow(projectName) }
-            coVerify { projectRepository.createProject(any()) }
-            coVerify { createAuditLogUseCase.logCreation(any(), any(), any()) }
-            assertThat(createdProject.name).isEqualTo(projectName)
-        }
+        every {
+            createAuditLogUseCase.logCreation(any(), any(), any())
+        } returns
+            Single.just(
+                AuditLog(
+                    userId = Uuid.random(),
+                    userName = "Test User",
+                    entityId = dummyProjectId,
+                    entityType = AuditLog.EntityType.PROJECT,
+                    entityName = projectName,
+                    actionType = AuditLog.ActionType.CREATE,
+                ),
+            )
+
+        every { projectStateRepository.createProjectState(any()) } returns
+            Single.just(
+                ProjectState(title = "To Do", projectId = dummyProjectId),
+            )
+
+        createProjectUseCase(projectName).blockingGet()
+
+        verify { validation.validateProjectNameOrThrow(projectName) }
+        verify { projectRepository.createProject(any()) }
+        verify { createAuditLogUseCase.logCreation(any(), any(), any()) }
+        verify(exactly = 3) { projectStateRepository.createProjectState(any()) }
+    }
 
     @Test
-    fun `should throw BlankInputException when projectName is blank`() =
-        runTest {
-            val projectName = ""
-            every { validation.validateProjectNameOrThrow(projectName) } throws BlankInputException()
+    fun `should throw ProjectCreationFailedException when projectName is too long`() {
+        val projectName = "a".repeat(100)
+        every { validation.validateProjectNameOrThrow(projectName) } throws ProjectCreationFailedException()
 
-            assertThrows<BlankInputException> {
-                createProjectUseCase(projectName)
-            }
+        assertThrows<ProjectCreationFailedException> {
+            createProjectUseCase(projectName).blockingGet()
         }
-
-    @Test
-    fun `should throw ProjectCreationFailedException when projectName is larger than 16`() =
-        runTest {
-            val projectName = "plan mate plan mate plan mate plan mate plan mate"
-            every { validation.validateProjectNameOrThrow(projectName) } throws ProjectCreationFailedException()
-
-            assertThrows<ProjectCreationFailedException> {
-                createProjectUseCase(projectName)
-            }
-        }
+    }
 }

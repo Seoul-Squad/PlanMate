@@ -1,6 +1,8 @@
 package org.example.data.repository
 
-import org.example.data.repository.mapper.mapExceptionsToDomainException
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
+import org.example.data.repository.mapper.mapExceptionsToDomainExceptionRx
 import org.example.data.repository.sources.remote.RemoteAuditLogDataSource
 import org.example.logic.models.AuditLog
 import org.example.logic.repositries.AuditLogRepository
@@ -14,26 +16,26 @@ import kotlin.uuid.Uuid
 class AuditLogRepositoryImpl(
     private val remoteAuditLogDataSource: RemoteAuditLogDataSource,
 ) : AuditLogRepository {
-    override suspend fun createAuditLog(log: AuditLog): AuditLog =
-        mapExceptionsToDomainException(AuditLogCreationFailedException()) {
+    override fun createAuditLog(log: AuditLog): Single<AuditLog> =
+        mapExceptionsToDomainExceptionRx(AuditLogCreationFailedException()) {
             remoteAuditLogDataSource.saveAuditLog(log)
         }
 
-    override suspend fun deleteAuditLog(logId: Uuid) =
-        mapExceptionsToDomainException(AuditLogDeletionFailedException()) {
+    override fun deleteAuditLog(logId: Uuid): Completable =
+        mapExceptionsToDomainExceptionRx(AuditLogDeletionFailedException()) {
             remoteAuditLogDataSource.deleteAuditLog(logId)
         }
 
-    override suspend fun getEntityLogs(
+    override fun getEntityLogs(
         entityId: Uuid,
         entityType: AuditLog.EntityType,
-    ): List<AuditLog> =
-        mapExceptionsToDomainException(AuditLogNotFoundException()) {
+    ): Single<List<AuditLog>> =
+        mapExceptionsToDomainExceptionRx(AuditLogNotFoundException()) {
             remoteAuditLogDataSource.getEntityLogs(entityId, entityType)
         }
 
-    override suspend fun getEntityLogByLogId(auditLogId: Uuid): AuditLog? =
-        mapExceptionsToDomainException(AuditLogNotFoundException()) {
+    override fun getEntityLogByLogId(auditLogId: Uuid): Single<AuditLog> =
+        mapExceptionsToDomainExceptionRx(AuditLogNotFoundException()) {
             remoteAuditLogDataSource.getEntityLogByLogId(auditLogId)
         }
 }

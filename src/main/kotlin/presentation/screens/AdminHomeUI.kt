@@ -1,6 +1,5 @@
 package org.example.presentation.screens
 
-import kotlinx.coroutines.runBlocking
 import org.example.logic.models.UserRole
 import org.example.logic.useCase.LogoutUseCase
 import presentation.utils.cyan
@@ -14,7 +13,7 @@ class AdminHomeUI(
     private val onNavigateToShowAllProjectsUI: (userRole: UserRole) -> Unit,
     private val onNavigateToCreateProject: () -> Unit,
     private val onNavigateToCreateUser: () -> Unit,
-    private val logoutUseCase:LogoutUseCase,
+    private val logoutUseCase: LogoutUseCase,
     private val onLogout: () -> Unit,
     private val onExit: () -> Unit,
 ) {
@@ -45,9 +44,9 @@ class AdminHomeUI(
         }
     }
 
-    private fun logout() =
-        runBlocking {
-            logoutUseCase()
+    private fun logout() {
+        logoutUseCase().subscribe {
             onLogout()
         }
+    }
 }

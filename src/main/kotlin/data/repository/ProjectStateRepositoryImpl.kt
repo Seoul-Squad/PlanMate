@@ -1,5 +1,7 @@
 package org.example.data.repository
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.data.source.remote.contract.RemoteProjectStateDataSource
 import org.example.logic.models.ProjectState
 import org.example.logic.repositries.ProjectStateRepository
@@ -10,20 +12,16 @@ import kotlin.uuid.Uuid
 class ProjectStateRepositoryImpl(
     private val remoteProjectStateDataSource: RemoteProjectStateDataSource,
 ) : ProjectStateRepository {
-    override suspend fun createProjectState(projectState: ProjectState): ProjectState = remoteProjectStateDataSource.createProjectState(projectState)
+    override fun createProjectState(projectState: ProjectState): Single<ProjectState> =
+        remoteProjectStateDataSource.createProjectState(projectState)
 
-    override suspend fun updateProjectState(updatedProjectState: ProjectState): ProjectState =
+    override fun updateProjectState(updatedProjectState: ProjectState): Single<ProjectState> =
         remoteProjectStateDataSource.updateProjectState(updatedProjectState)
 
-    override suspend fun deleteProjectState(projectStateId: Uuid) {
-        remoteProjectStateDataSource.deleteProjectState(projectStateId)
-    }
+    override fun deleteProjectState(projectStateId: Uuid): Completable = remoteProjectStateDataSource.deleteProjectState(projectStateId)
 
-    override suspend fun getProjectStates(projectId: Uuid): List<ProjectState> {
-        return remoteProjectStateDataSource.getProjectStates(projectId)
-    }
+    override fun getProjectStates(projectId: Uuid): Single<List<ProjectState>> = remoteProjectStateDataSource.getProjectStates(projectId)
 
-    override suspend fun getProjectStateById(projectStateId: Uuid): ProjectState? {
-        return remoteProjectStateDataSource.getProjectStateById(projectStateId)
-    }
+    override fun getProjectStateById(projectStateId: Uuid): Single<ProjectState> =
+        remoteProjectStateDataSource.getProjectStateById(projectStateId)
 }

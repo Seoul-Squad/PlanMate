@@ -1,14 +1,16 @@
 package org.example.data.source.remote.mongo
 
 import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
+import com.mongodb.reactivestreams.client.MongoCollection
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
+import org.example.data.repository.sources.remote.RemoteAuthenticationDataSource
 import org.example.data.source.remote.models.UserDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperation
+import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toUser
 import org.example.data.source.remote.mongo.utils.mapper.toUserDTO
-import org.example.data.repository.sources.remote.RemoteAuthenticationDataSource
 import org.example.data.utils.Constants.AUTH_TYPE_FIELD
 import org.example.data.utils.Constants.PASSWORD_FIELD
 import org.example.data.utils.Constants.USERNAME_FIELD
@@ -16,45 +18,66 @@ import org.example.logic.models.User
 import org.example.logic.utils.UserAlreadyExistsException
 import org.example.logic.utils.UserNotFoundException
 
-class MongoAuthenticationDataSource(private val mongoClient: MongoCollection<UserDTO>) :
-    RemoteAuthenticationDataSource {
-
+class MongoAuthenticationDataSource(
+    private val mongoClient: MongoCollection<UserDTO>,
+) : RemoteAuthenticationDataSource {
     private var currentUser: User? = null
 
-    override suspend fun saveUser(user: User) {
+    override fun saveUser(user: User): Single<User> =
+        Observable
+            .fromPublisher(
+                mongoClient.find(Filters.eq(USERNAME_FIELD, user.username)).limit(1),
+            ).isEmpty
+            .flatMap { isEmpty ->
+                if (!isEmpty) {
+                    Single.error(UserAlreadyExistsException())
+                } else {
+                    executeMongoOperationRx {
+                        Single.fromPublisher(mongoClient.insertOne(user.toUserDTO()))
+                    }.map { user }
+                }
+            }
 
-        if (mongoClient.find(Filters.eq(USERNAME_FIELD, user.username)).firstOrNull() != null)
-            throw UserAlreadyExistsException()
-        executeMongoOperation {
-            mongoClient.insertOne(user.toUserDTO())
+    override fun getAllUsers(): Single<List<User>> =
+        executeMongoOperationRx {
+            Flowable
+                .fromPublisher(mongoClient.find())
+                .map { userDTO ->
+                    userDTO.toUser()
+                }.toList()
         }
-    }
 
-    override suspend fun getAllUsers(): List<User> {
-        return executeMongoOperation {
-            mongoClient.find().toList().map { it.toUser() }
+    override fun loginWithPassword(
+        username: String,
+        hashedPassword: String,
+    ): Single<User> =
+        executeMongoOperationRx {
+            val publisher =
+                mongoClient
+                    .find(
+                        Filters.and(
+                            Filters.eq(USERNAME_FIELD, username),
+                            Filters.eq(AUTH_TYPE_FIELD, "password"),
+                            Filters.eq(PASSWORD_FIELD, hashedPassword),
+                        ),
+                    ).first()
+
+            Single
+                .fromPublisher(publisher)
+                .map { userDTO ->
+                    currentUser = userDTO.toUser()
+                    currentUser!!
+                }
         }
-    }
 
-    override suspend fun loginWithPassword(username: String, hashedPassword: String): User {
-        return executeMongoOperation {
-            currentUser = mongoClient
-                .find(
-                    Filters.and(
-                        Filters.eq(USERNAME_FIELD, username),
-                        Filters.eq(AUTH_TYPE_FIELD, "password"),
-                        Filters.eq(PASSWORD_FIELD, hashedPassword)
-                    )
-                )
-                .firstOrNull()?.toUser()
-                ?: throw UserNotFoundException()
-            currentUser!!
+    override fun logout(): Completable = Completable.fromAction { currentUser = null }
+
+    override fun getCurrentUser(): Single<User> =
+        Single.create { emitter ->
+            if (currentUser != null) {
+                emitter.onSuccess(currentUser!!)
+            } else {
+                emitter.onError(UserNotFoundException())
+            }
         }
-    }
-
-    override suspend fun logout() {
-        currentUser = null
-    }
-
-    override suspend fun getCurrentUser(): User? = currentUser
 }

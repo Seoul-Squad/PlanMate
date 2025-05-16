@@ -48,9 +48,8 @@ class CsvTaskDataSource(
     override fun getAllTasks(): List<Task> = tasks
 
     override fun getTaskById(taskId: Uuid): Task? = tasks.firstOrNull { it.id == taskId }
-    override suspend fun getTasksByProjectState(stateId: Uuid): List<Task> {
-        return tasks.filter { it.stateId == stateId }
-    }
+
+    override fun getTasksByProjectState(stateId: Uuid): List<Task> = tasks.filter { it.stateId == stateId }
 
     private fun readCsvTasks() {
         csvReader.readLines().toTasks().let { updatedTasks ->

@@ -1,13 +1,11 @@
 package org.example.logic.useCase
 
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.Project
 import org.example.logic.repositries.ProjectRepository
-import org.example.logic.utils.NoProjectsFoundException
 
 class GetAllProjectsUseCase(
-    private val projectRepository: ProjectRepository
+    private val projectRepository: ProjectRepository,
 ) {
-    suspend operator fun invoke(): List<Project> {
-       return  projectRepository.getAllProjects()
-    }
+    operator fun invoke(): Single<List<Project>> = projectRepository.getAllProjects()
 }

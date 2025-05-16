@@ -1,21 +1,23 @@
 package org.example.logic.repositries
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.User
 
 interface AuthenticationRepository {
-    suspend fun getCurrentUser(): User?
+    fun getCurrentUser(): Single<User>
 
-    suspend fun createUserWithPassword(
+    fun createUserWithPassword(
         username: String,
         password: String,
-    ): User
+    ): Single<User>
 
-    suspend fun loginWithPassword(
+    fun loginWithPassword(
         username: String,
         password: String,
-    ): User
+    ): Single<User>
 
-    suspend fun logout()
+    fun logout(): Completable
 
-    suspend fun getAllUsers(): List<User>
+    fun getAllUsers(): Single<List<User>>
 }

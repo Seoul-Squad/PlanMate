@@ -1,5 +1,6 @@
 package org.example.logic.useCase
 
+import io.reactivex.rxjava3.core.Completable
 import org.example.logic.models.AuditLog
 import org.example.logic.repositries.TaskRepository
 import kotlin.uuid.ExperimentalUuidApi
@@ -11,15 +12,15 @@ class DeleteTaskUseCase(
     private val getTaskByIdUseCase: GetTaskByIdUseCase,
     private val createAuditLogUseCase: CreateAuditLogUseCase,
 ) {
-    suspend operator fun invoke(taskId: Uuid) {
-        getTaskByIdUseCase(taskId).let { task ->
-            taskRepository.deleteTask(taskId).also {
-                createAuditLogUseCase.logDeletion(
+    operator fun invoke(taskId: Uuid): Completable {
+        val task = getTaskByIdUseCase(taskId).blockingGet()
+        return taskRepository.deleteTask(taskId).doOnComplete {
+            createAuditLogUseCase
+                .logDeletion(
                     entityType = AuditLog.EntityType.TASK,
                     entityId = task.id,
                     entityName = task.name,
-                )
-            }
+                ).blockingGet()
         }
     }
 }

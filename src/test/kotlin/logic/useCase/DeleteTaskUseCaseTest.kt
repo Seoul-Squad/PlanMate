@@ -1,18 +1,18 @@
 package logic.useCase
 
-import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.AuditLog
 import org.example.logic.models.Task
 import org.example.logic.repositries.TaskRepository
 import org.example.logic.useCase.CreateAuditLogUseCase
 import org.example.logic.useCase.DeleteTaskUseCase
 import org.example.logic.useCase.GetTaskByIdUseCase
-import kotlin.test.BeforeTest
-import kotlin.test.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -34,32 +34,39 @@ class DeleteTaskUseCaseTest {
         projectId = Uuid.random()
     )
 
-    @BeforeTest
+    @BeforeEach
     fun setUp() {
-        taskRepository = mockk(relaxed = true)
+        taskRepository = mockk()
         getTaskByIdUseCase = mockk()
-        createAuditLogUseCase = mockk(relaxed = true)
-
+        createAuditLogUseCase = mockk()
         deleteTaskUseCase = DeleteTaskUseCase(
             taskRepository = taskRepository,
             getTaskByIdUseCase = getTaskByIdUseCase,
             createAuditLogUseCase = createAuditLogUseCase
         )
-
-        coEvery { getTaskByIdUseCase(testTask.id) } returns testTask
     }
 
     @Test
-    fun `should delete task and create audit log`() = runTest {
-        deleteTaskUseCase(testTask.id)
-
-        coVerify { taskRepository.deleteTask(testTask.id) }
-
-        coVerify {
+    fun `should delete task and create audit log`() {
+        every { getTaskByIdUseCase(testTask.id) } returns Single.just(testTask)
+        every { taskRepository.deleteTask(testTask.id) } returns Completable.complete()
+        every {
             createAuditLogUseCase.logDeletion(
-                entityType = AuditLog.EntityType.TASK,
-                entityId = testTask.id,
-                entityName = testTask.name
+                AuditLog.EntityType.TASK,
+                testTask.id,
+                testTask.name,
+            )
+        } returns Single.just(mockk())
+
+        val testObserver = deleteTaskUseCase(testTask.id).test()
+
+        testObserver.assertComplete()
+        verify { taskRepository.deleteTask(testTask.id) }
+        verify {
+            createAuditLogUseCase.logDeletion(
+                AuditLog.EntityType.TASK,
+                testTask.id,
+                testTask.name,
             )
         }
     }

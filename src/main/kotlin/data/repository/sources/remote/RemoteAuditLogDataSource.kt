@@ -1,19 +1,21 @@
 package org.example.data.repository.sources.remote
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.AuditLog
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 interface RemoteAuditLogDataSource {
-    suspend fun saveAuditLog(auditLog: AuditLog): AuditLog
+    fun saveAuditLog(auditLog: AuditLog): Single<AuditLog>
 
-    suspend fun deleteAuditLog(auditLogId: Uuid)
+    fun deleteAuditLog(auditLogId: Uuid): Completable
 
-    suspend fun getEntityLogs(
+    fun getEntityLogs(
         entityId: Uuid,
         entityType: AuditLog.EntityType,
-    ): List<AuditLog>
+    ): Single<List<AuditLog>>
 
-    suspend fun getEntityLogByLogId(auditLogId: Uuid): AuditLog?
+    fun getEntityLogByLogId(auditLogId: Uuid): Single<AuditLog>
 }

@@ -23,7 +23,6 @@ val useCaseModule =
         singleOf(::GetEntityAuditLogsUseCase)
         singleOf(::GetProjectByIdUseCase)
         singleOf(::GetProjectTasksUseCase)
-        singleOf(::GetStateNameUseCase)
         singleOf(::GetTaskByIdUseCase)
         singleOf(::LoginUserUseCase)
         singleOf(::LogoutUseCase)

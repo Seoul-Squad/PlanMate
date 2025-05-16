@@ -1,18 +1,20 @@
 package org.example.data.repository.sources.remote
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.User
 
 interface RemoteAuthenticationDataSource {
-    suspend fun saveUser(user: User)
+    fun saveUser(user: User): Single<User>
 
-    suspend fun getAllUsers(): List<User>
+    fun getAllUsers(): Single<List<User>>
 
-    suspend fun loginWithPassword(
+    fun loginWithPassword(
         username: String,
         hashedPassword: String,
-    ): User
+    ): Single<User>
 
-    suspend fun logout()
+    fun logout(): Completable
 
-    suspend fun getCurrentUser(): User?
+    fun getCurrentUser(): Single<User>
 }

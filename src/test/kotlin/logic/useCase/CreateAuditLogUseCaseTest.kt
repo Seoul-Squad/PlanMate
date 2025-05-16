@@ -1,9 +1,11 @@
 package logic.useCase
 
-import io.mockk.coEvery
-import io.mockk.coVerify
+import com.google.common.truth.Truth.assertThat
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.slot
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.AuditLog
 import org.example.logic.models.AuditLog.FieldChange
 import org.example.logic.models.User
@@ -13,7 +15,6 @@ import org.example.logic.useCase.CreateAuditLogUseCase
 import org.example.logic.useCase.GetCurrentUserUseCase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import com.google.common.truth.Truth.assertThat
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -40,69 +41,63 @@ class CreateAuditLogUseCaseTest {
         getCurrentUserUseCase = mockk()
         createAuditLogUseCase = CreateAuditLogUseCase(auditLogRepository, getCurrentUserUseCase)
 
-        coEvery { getCurrentUserUseCase() } returns testUser
+        every { getCurrentUserUseCase() } returns Single.just(testUser)
     }
 
     @Test
-    fun `should call createAuditLog with correct CREATE action when logCreation is called`() = runTest {
-        coEvery { auditLogRepository.createAuditLog(any()) } returns mockk()
+    fun `should call createAuditLog with correct CREATE action when logCreation is called`() {
+        val logSlot = slot<AuditLog>()
+        every { auditLogRepository.createAuditLog(capture(logSlot)) } returns Single.just(mockk())
 
         createAuditLogUseCase.logCreation(
             entityType = AuditLog.EntityType.PROJECT,
             entityId = entityId,
             entityName = entityName,
-        )
+        ).blockingGet()
 
-        coVerify {
-            auditLogRepository.createAuditLog(
-                withArg {
-                    assertThat(it.actionType).isEqualTo(AuditLog.ActionType.CREATE)
-                    assertThat(it.userId).isEqualTo(testUser.id)
-                    assertThat(it.entityType).isEqualTo(AuditLog.EntityType.PROJECT)
-                }
-            )
-        }
+        verify { auditLogRepository.createAuditLog(any()) }
+
+        val capturedLog = logSlot.captured
+        assertThat(capturedLog.actionType).isEqualTo(AuditLog.ActionType.CREATE)
+        assertThat(capturedLog.userId).isEqualTo(testUser.id)
+        assertThat(capturedLog.entityType).isEqualTo(AuditLog.EntityType.PROJECT)
     }
 
     @Test
-    fun `should call createAuditLog with correct UPDATE action and field change when logUpdate is called`() = runTest {
+    fun `should call createAuditLog with correct UPDATE action and field change when logUpdate is called`() {
         val fieldChange = FieldChange("field", "old", "new")
-        coEvery { auditLogRepository.createAuditLog(any()) } returns mockk()
+        val logSlot = slot<AuditLog>()
+        every { auditLogRepository.createAuditLog(capture(logSlot)) } returns Single.just(mockk())
 
         createAuditLogUseCase.logUpdate(
             entityType = AuditLog.EntityType.TASK,
             entityId = entityId,
             entityName = entityName,
             fieldChange = fieldChange,
-        )
+        ).blockingGet()
 
-        coVerify {
-            auditLogRepository.createAuditLog(
-                withArg {
-                    assertThat(it.actionType).isEqualTo(AuditLog.ActionType.UPDATE)
-                    assertThat(it.fieldChange).isEqualTo(fieldChange)
-                }
-            )
-        }
+        verify { auditLogRepository.createAuditLog(any()) }
+
+        val capturedLog = logSlot.captured
+        assertThat(capturedLog.actionType).isEqualTo(AuditLog.ActionType.UPDATE)
+        assertThat(capturedLog.fieldChange).isEqualTo(fieldChange)
     }
 
     @Test
-    fun `should call createAuditLog with correct DELETE action when logDeletion is called`() = runTest {
-        coEvery { auditLogRepository.createAuditLog(any()) } returns mockk()
+    fun `should call createAuditLog with correct DELETE action when logDeletion is called`() {
+        val logSlot = slot<AuditLog>()
+        every { auditLogRepository.createAuditLog(capture(logSlot)) } returns Single.just(mockk())
 
         createAuditLogUseCase.logDeletion(
             entityType = AuditLog.EntityType.TASK,
             entityId = entityId,
             entityName = entityName,
-        )
+        ).blockingGet()
 
-        coVerify {
-            auditLogRepository.createAuditLog(
-                withArg {
-                    assertThat(it.actionType).isEqualTo(AuditLog.ActionType.DELETE)
-                    assertThat(it.fieldChange).isNull()
-                }
-            )
-        }
+        verify { auditLogRepository.createAuditLog(any()) }
+
+        val capturedLog = logSlot.captured
+        assertThat(capturedLog.actionType).isEqualTo(AuditLog.ActionType.DELETE)
+        assertThat(capturedLog.fieldChange).isNull()
     }
 }

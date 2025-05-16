@@ -1,18 +1,20 @@
 package org.example.logic.repositries
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.Project
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 interface ProjectRepository {
-    suspend fun createProject(project: Project): Project
+    fun createProject(project: Project): Single<Project>
 
-    suspend fun updateProject(updatedProject: Project): Project
+    fun updateProject(updatedProject: Project): Single<Project>
 
-    suspend fun deleteProject(projectId: Uuid)
+    fun deleteProject(projectId: Uuid): Completable
 
-    suspend fun getAllProjects(): List<Project>
+    fun getAllProjects(): Single<List<Project>>
 
-    suspend fun getProjectById(projectId: Uuid): Project?
+    fun getProjectById(projectId: Uuid): Single<Project>
 }
