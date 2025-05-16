@@ -17,8 +17,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
 
     // MongoDB Coroutines Driver
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.mongodb:mongodb-driver-kotlin-coroutine:4.10.1")
+//    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+//    implementation("org.mongodb:mongodb-driver-kotlin-coroutine:4.10.1")
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 
     // RxJava
