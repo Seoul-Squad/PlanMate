@@ -1,7 +1,6 @@
 package org.example.logic.useCase
 
 import io.reactivex.rxjava3.core.Single
-import kotlinx.coroutines.runBlocking
 import org.example.logic.models.AuditLog
 import org.example.logic.models.Project
 import org.example.logic.models.ProjectState
@@ -26,45 +25,47 @@ class CreateProjectUseCase(
         return projectRepository
             .createProject(project)
             .doOnSuccess {
-                runBlocking {
-                    createLog(project.id, projectName)
-                    createDefaultStates(project.id)
-                }
+                createLog(project.id, projectName)
+                createDefaultStates(project.id)
             }
     }
 
-    private suspend fun createLog(
+    private fun createLog(
         projectId: Uuid,
         projectName: String,
     ) {
-        createAuditLogUseCase.logCreation(
-            entityId = projectId,
-            entityName = projectName,
-            entityType = AuditLog.EntityType.PROJECT,
-        )
+        createAuditLogUseCase
+            .logCreation(
+                entityId = projectId,
+                entityName = projectName,
+                entityType = AuditLog.EntityType.PROJECT,
+            ).blockingGet()
     }
 
-    private suspend fun createDefaultStates(projectId: Uuid) =
+    private fun createDefaultStates(projectId: Uuid) =
         listOf(
-            projectStateRepository.createProjectState(
-                ProjectState(
-                    title = DEFAULT_TO_DO_STATE_NAME,
-                    projectId = projectId,
-                ),
-            ),
-            projectStateRepository.createProjectState(
-                ProjectState(
-                    title = DEFAULT_IN_PROGRESS_STATE_NAME,
-                    projectId = projectId,
-                ),
-            ),
-            projectStateRepository.createProjectState(
-                ProjectState(
-                    title = DEFAULT_DONE_STATE_NAME,
-                    projectId = projectId,
-                ),
-            ),
-        ).map { it.id }
+            projectStateRepository
+                .createProjectState(
+                    ProjectState(
+                        title = DEFAULT_TO_DO_STATE_NAME,
+                        projectId = projectId,
+                    ),
+                ).blockingGet(),
+            projectStateRepository
+                .createProjectState(
+                    ProjectState(
+                        title = DEFAULT_IN_PROGRESS_STATE_NAME,
+                        projectId = projectId,
+                    ),
+                ).blockingGet(),
+            projectStateRepository
+                .createProjectState(
+                    ProjectState(
+                        title = DEFAULT_DONE_STATE_NAME,
+                        projectId = projectId,
+                    ),
+                ).blockingGet(),
+        ).map { it }
 
     companion object {
         const val DEFAULT_TO_DO_STATE_NAME = "To Do"

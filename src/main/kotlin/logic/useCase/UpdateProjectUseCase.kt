@@ -20,16 +20,15 @@ class UpdateProjectUseCase(
         validation.validateInputNotBlankOrThrow(updatedProject.name)
         val originalProject = currentOriginalProject(updatedProject)
         detectChanges(updatedProject, originalProject)
-        return projectRepository.updateProject(updatedProject)
-//            .also {
-//                createLogs(
-//                    originalProject = originalProject,
-//                    newProject = updatedProject,
-//                )
-//            }
+        return projectRepository.updateProject(updatedProject).doOnSuccess {
+            createLogs(
+                originalProject = originalProject,
+                newProject = updatedProject,
+            )
+        }
     }
 
-    private suspend fun createLogs(
+    private fun createLogs(
         originalProject: Project,
         newProject: Project,
     ) {
@@ -40,7 +39,8 @@ class UpdateProjectUseCase(
                     entityName = newProject.name,
                     entityType = AuditLog.EntityType.PROJECT,
                     fieldChange = change,
-                ).id
+                ).blockingGet()
+                .id
         }
     }
 
