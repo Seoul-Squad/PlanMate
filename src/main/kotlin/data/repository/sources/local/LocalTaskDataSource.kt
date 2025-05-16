@@ -16,7 +16,5 @@ interface LocalTaskDataSource {
 
     fun getTaskById(taskId: Uuid): Task?
 
-    suspend fun getTasksByProjectState(
-        stateId: Uuid,
-    ): List<Task>
+    fun getTasksByProjectState(stateId: Uuid): List<Task>
 }
