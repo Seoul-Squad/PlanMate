@@ -5,19 +5,16 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.InsertOneResult
 import com.mongodb.client.result.UpdateResult
-import com.mongodb.kotlin.client.coroutine.FindFlow
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import io.mockk.*
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
-import org.bson.BsonInt32
+import com.mongodb.reactivestreams.client.FindPublisher
+import com.mongodb.reactivestreams.client.MongoCollection
+import io.mockk.every
+import io.mockk.mockk
+import io.reactivex.rxjava3.core.Flowable
 import org.example.data.source.remote.models.ProjectStateDTO
 import org.example.data.source.remote.mongo.MongoProjectStateDataSource
-import org.example.data.source.remote.mongo.utils.mapper.toState
 import org.example.data.source.remote.mongo.utils.mapper.toStateDTO
 import org.example.logic.models.ProjectState
-import org.example.logic.utils.*
+import org.example.logic.utils.ProjectStateNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -26,7 +23,6 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class MongoProjectStateDataSourceTest {
-
     private lateinit var mongoCollection: MongoCollection<ProjectStateDTO>
     private lateinit var dataSource: MongoProjectStateDataSource
     private lateinit var testState: ProjectState
@@ -39,53 +35,105 @@ class MongoProjectStateDataSourceTest {
         mongoCollection = mockk(relaxed = true)
         dataSource = MongoProjectStateDataSource(mongoCollection)
 
-        testState = ProjectState(
-            id = testId,
-            title = "To Do",
-            projectId = testProjectId
-        )
+        testState =
+            ProjectState(
+                id = testId,
+                title = "To Do",
+                projectId = testProjectId,
+            )
         testDto = testState.toStateDTO()
     }
 
     @Test
-    fun `should throw TaskNotFoundException when get by id fails`() = runTest {
-        coEvery { mongoCollection.find(Filters.eq("id", testId.toHexString())) } throws RuntimeException()
+    fun `should return project state when creating in MongoDB`() {
+        val insertResult = mockk<InsertOneResult>()
+        every { mongoCollection.insertOne(testDto) } returns Flowable.just(insertResult)
 
-        assertThrows<TaskNotFoundException> {
-            dataSource.getProjectStateById(testId)
+        val result = dataSource.createProjectState(testState).blockingGet()
+
+        assertThat(result).isEqualTo(testState)
+    }
+
+    @Test
+    fun `should return project state when updating in MongoDB`() {
+        val updateResult = mockk<UpdateResult>()
+        every {
+            mongoCollection.replaceOne(Filters.eq("id", testId.toHexString()), testDto)
+        } returns Flowable.just(updateResult)
+
+        val result = dataSource.updateProjectState(testState).blockingGet()
+
+        assertThat(result).isEqualTo(testState)
+    }
+
+    @Test
+    fun `should complete when deleting project state`() {
+        val deleteResult = mockk<DeleteResult>()
+        every { mongoCollection.deleteOne(Filters.eq("id", testId.toHexString())) } returns Flowable.just(deleteResult)
+
+        val result = dataSource.deleteProjectState(testId).test()
+
+        result.assertComplete()
+    }
+
+    @Test
+    fun `should return project state when found by id`() {
+        val publisher = mockk<FindPublisher<ProjectStateDTO>>()
+        every { mongoCollection.find(Filters.eq("id", testId.toHexString())).first() } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            val subscriber = firstArg<org.reactivestreams.Subscriber<in ProjectStateDTO>>()
+            subscriber.onNext(testDto)
+            subscriber.onComplete()
+        }
+
+        val result = dataSource.getProjectStateById(testId).blockingGet()
+
+        assertThat(result).isEqualTo(testState)
+    }
+
+    @Test
+    fun `should throw ProjectStateNotFoundException when get by id fails`() {
+        every {
+            mongoCollection.find(Filters.eq("id", testId.toHexString())).first()
+        } returns Flowable.error(RuntimeException("not found"))
+
+        assertThrows<ProjectStateNotFoundException> {
+            dataSource.getProjectStateById(testId).blockingGet()
         }
     }
 
     @Test
-    fun `should throw TaskNotFoundException when get by project id fails`() = runTest {
-        coEvery {
+    fun `should return list of project states by project id`() {
+        val publisher = mockk<FindPublisher<ProjectStateDTO>>()
+        every {
             mongoCollection.find(Filters.eq("projectId", testProjectId.toHexString()))
-        } throws RuntimeException()
-
-        assertThrows<TaskNotFoundException> {
-            dataSource.getProjectStates(testProjectId)
+        } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            val subscriber = firstArg<org.reactivestreams.Subscriber<in ProjectStateDTO>>()
+            subscriber.onNext(testDto)
+            subscriber.onComplete()
         }
+
+        val result = dataSource.getProjectStates(testProjectId).blockingGet()
+
+        assertThat(result).containsExactly(testState)
     }
 
     @Test
-    fun `should return null when project state not found by id`() = runTest {
-        coEvery {
-            mongoCollection.find(Filters.eq("id", testId.toHexString())).firstOrNull()
-        } returns null
+    fun `should throw ProjectStateNotFoundException when get by project id fails`() {
+        val publisher = mockk<FindPublisher<ProjectStateDTO>>()
 
-        val result = dataSource.getProjectStateById(testId)
+        every {
+            mongoCollection.find(Filters.eq("projectId", testProjectId.toHexString()))
+        } returns publisher
 
-        assertThat(result).isNull()
-    }
+        every { publisher.subscribe(any()) } answers {
+            val subscriber = firstArg<org.reactivestreams.Subscriber<in ProjectStateDTO>>()
+            subscriber.onError(RuntimeException("db error"))
+        }
 
-    @Test
-    fun `should return empty list when no project states found by project id`() = runTest {
-        coEvery {
-            mongoCollection.find(Filters.eq("projectId", testProjectId.toHexString())).toList()
-        } returns emptyList()
-
-        val result = dataSource.getProjectStates(testProjectId)
-
-        assertThat(result).isEmpty()
+        assertThrows<ProjectStateNotFoundException> {
+            dataSource.getProjectStates(testProjectId).blockingGet()
+        }
     }
 }

@@ -1,10 +1,19 @@
 package presentation.screens
 
-import io.mockk.*
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import kotlinx.datetime.Clock
 import org.example.logic.models.AuditLog
 import org.example.logic.models.Project
-import org.example.logic.useCase.*
+import org.example.logic.models.UserRole
+import org.example.logic.useCase.DeleteProjectUseCase
+import org.example.logic.useCase.GetAllProjectsUseCase
+import org.example.logic.useCase.GetEntityAuditLogsUseCase
+import org.example.logic.useCase.LogoutUseCase
 import org.example.logic.useCase.updateProject.UpdateProjectUseCase
 import org.example.logic.utils.*
 import org.example.presentation.role.ProjectScreensOptions
@@ -31,6 +40,7 @@ class ProjectsOverviewUITest {
 
     private val mockOnNavigateToShowProjectTasksUI = mockk<(Uuid) -> Unit>(relaxed = true)
     private val mockOnNavigateToProjectStatusUI = mockk<(Uuid) -> Unit>(relaxed = true)
+    private val mockOnNavigateBack = mockk<() -> Unit>(relaxed = true)
     private val mockOnLogout = mockk<() -> Unit>(relaxed = true)
     private val mockOnExit = mockk<() -> Unit>(relaxed = true)
 
@@ -46,8 +56,10 @@ class ProjectsOverviewUITest {
         ProjectsOverviewUI(
             onNavigateToShowProjectTasksUI = mockOnNavigateToShowProjectTasksUI,
             onNavigateToProjectStatusUI = mockOnNavigateToProjectStatusUI,
+            onNavigateBack = mockOnNavigateBack,
             onLogout = mockOnLogout,
             onExit = mockOnExit,
+            userRoute = UserRole.USER,
             getAllProjectsUseCase = getAllProjectsUseCase,
             updateProjectUseCase = updateProjectUseCase,
             getEntityAuditLogsUseCase = getEntityAuditLogsUseCase,
@@ -56,7 +68,7 @@ class ProjectsOverviewUITest {
             reader = reader,
             viewer = viewer,
             tablePrinter = tablePrinter,
-            projectScreensOptions = projectScreensOptions
+            projectScreensOptions = projectScreensOptions,
         )
     }
 
@@ -72,19 +84,20 @@ class ProjectsOverviewUITest {
         tablePrinter = mockk(relaxed = true)
         projectScreensOptions = mockk(relaxed = true)
 
-        every { projectScreensOptions.showAllProjectsOptions() } returns mapOf(
-            "1" to "1 - Show Project Details",
-            "2" to "2 - Update Project",
-            "3" to "3 - Delete Project",
-            "4" to "4 - Show Logs",
-            "5" to "5 - Logout",
-            "0" to "0 - Exit"
-        )
+        every { projectScreensOptions.showAllProjectsOptions() } returns
+            mapOf(
+                "1" to "1 - Show Project Details",
+                "2" to "2 - Update Project",
+                "3" to "3 - Delete Project",
+                "4" to "4 - Show Logs",
+                "5" to "5 - Logout",
+                "0" to "0 - Exit",
+            )
     }
 
     @Test
     fun `should return task UI navigation when selecting show project details`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("1", "1", "5")
 
         launchUI()
@@ -94,7 +107,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return status UI navigation when selecting manage project status`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "2", "1", "5")
 
         launchUI()
@@ -105,7 +118,7 @@ class ProjectsOverviewUITest {
     @Test
     fun `should update project name when new name is provided`() {
         val newName = "Updated Project Alpha"
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "1", "1", newName, "5")
 
         launchUI()
@@ -115,9 +128,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw ProjectNotChangedException when updating with the same name`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "1", "1", "Project Alpha", "5")
-        coEvery { updateProjectUseCase(any()) } throws ProjectNotChangedException()
+        every { updateProjectUseCase(any()) } throws ProjectNotChangedException()
 
         launchUI()
 
@@ -126,9 +139,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw ProjectNotFoundException when updating a non-existing project`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "1", "1", "New Name", "5")
-        coEvery { updateProjectUseCase(any()) } throws ProjectNotFoundException()
+        every { updateProjectUseCase(any()) } throws ProjectNotFoundException()
 
         launchUI()
 
@@ -137,9 +150,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw RuntimeException when unexpected error occurs during update`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "1", "1", "new name", "5")
-        coEvery { updateProjectUseCase(any()) } throws RuntimeException("Unexpected")
+        every { updateProjectUseCase(any()) } throws RuntimeException("Unexpected")
 
         launchUI()
 
@@ -148,22 +161,23 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return logs display when audit logs are fetched successfully`() {
-        val logs = listOf(
-            AuditLog(
-                id = id1,
-                userId = Uuid.random(),
-                createdAt = Clock.System.now(),
-                entityType = AuditLog.EntityType.PROJECT,
-                entityId = id1,
-                actionType = AuditLog.ActionType.UPDATE,
-                userName = "testuser",
-                entityName = "Project Alpha",
-                fieldChange = null
+        val logs =
+            listOf(
+                AuditLog(
+                    id = id1,
+                    userId = Uuid.random(),
+                    createdAt = Clock.System.now(),
+                    entityType = AuditLog.EntityType.PROJECT,
+                    entityId = id1,
+                    actionType = AuditLog.ActionType.UPDATE,
+                    userName = "testuser",
+                    entityName = "Project Alpha",
+                    fieldChange = null,
+                ),
             )
-        )
 
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
-        coEvery { getEntityAuditLogsUseCase(id1, AuditLog.EntityType.PROJECT) } returns logs
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
+        every { getEntityAuditLogsUseCase(id1, AuditLog.EntityType.PROJECT) } returns Single.just(logs)
         every { reader.readString() } returnsMany listOf("4", "1", "5")
 
         launchUI()
@@ -173,9 +187,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw TaskNotFoundException when fetching logs for a task that doesn't exist`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("4", "1", "5")
-        coEvery { getEntityAuditLogsUseCase(any(), any()) } throws TaskNotFoundException()
+        every { getEntityAuditLogsUseCase(any(), any()) } throws TaskNotFoundException()
 
         launchUI()
 
@@ -184,9 +198,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw ProjectNotFoundException when fetching logs for a non-existing project`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("4", "1", "5")
-        coEvery { getEntityAuditLogsUseCase(any(), any()) } throws ProjectNotFoundException()
+        every { getEntityAuditLogsUseCase(any(), any()) } throws ProjectNotFoundException()
 
         launchUI()
 
@@ -195,9 +209,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw BlankInputException when blank input is given for logs fetching`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("4", "1", "5")
-        coEvery { getEntityAuditLogsUseCase(any(), any()) } throws BlankInputException()
+        every { getEntityAuditLogsUseCase(any(), any()) } throws BlankInputException()
 
         launchUI()
 
@@ -206,7 +220,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return exit action when user selects exit from main menu`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("0")
 
         launchUI()
@@ -216,7 +230,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return invalid option message when unrecognized main menu input is entered`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("99", "5")
 
         launchUI()
@@ -226,7 +240,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return invalid input message when unrecognized update option is selected`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("2", "999", "5")
 
         launchUI()
@@ -236,9 +250,9 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should delete project when valid index is selected`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("3", "1", "5")
-        coEvery { deleteProjectUseCase(id1) } just Runs
+        every { deleteProjectUseCase(id1) } returns Completable.complete()
 
         launchUI()
 
@@ -248,7 +262,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return without deletion when delete index is invalid`() {
-        coEvery { getAllProjectsUseCase() } returns sampleProjects
+        every { getAllProjectsUseCase() } returns Single.just(sampleProjects)
         every { reader.readString() } returnsMany listOf("3", "", "5")
 
         launchUI()
@@ -258,7 +272,7 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should return no projects message and logout when project list is empty`() {
-        coEvery { getAllProjectsUseCase() } returns emptyList()
+        every { getAllProjectsUseCase() } returns Single.error(NoProjectsFoundException())
         every { reader.readString() } returns "5"
 
         launchUI()
@@ -269,12 +283,11 @@ class ProjectsOverviewUITest {
 
     @Test
     fun `should throw RuntimeException when unknown error occurs while loading projects`() {
-        coEvery { getAllProjectsUseCase() } throws RuntimeException("Database unavailable")
+        every { getAllProjectsUseCase() } returns Single.error(RuntimeException("Database unavailable"))
         every { reader.readString() } returns "5"
 
         launchUI()
 
         verify { viewer.display(match { it.contains("Database unavailable") }) }
     }
-
 }

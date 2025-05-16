@@ -1,8 +1,8 @@
-package logic.useCase
-
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.observers.TestObserver
 import org.example.logic.repositries.AuthenticationRepository
 import org.example.logic.useCase.LogoutUseCase
 import org.junit.jupiter.api.BeforeEach
@@ -19,10 +19,13 @@ class LogoutUseCaseTest {
     }
 
     @Test
-    fun `should call logout on authentication repository when useCase invoked`() =
-        runTest {
-            logoutUseCase()
+    fun `should call logout on authentication repository when useCase invoked`() {
+        every { authenticationRepository.logout() } returns Completable.complete()
 
-            coVerify { authenticationRepository.logout() }
-        }
+        val testObserver: TestObserver<Void> = logoutUseCase().test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        verify(exactly = 1) { authenticationRepository.logout() }
+    }
 }

@@ -3,6 +3,7 @@ package logic.useCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.test.runTest
 import org.example.logic.models.ProjectState
 import org.example.logic.models.Task
@@ -68,8 +69,9 @@ class UpdateProjectStateUseCaseTest {
             Task(Uuid.random(), "Task 2", projectId, "u2", stateId, "Old State", Uuid.random())
         )
 
-        coEvery { getProjectStatesUseCase(projectId) } returns oldStates
-        coEvery { getTasksByProjectStateUseCase(stateId) } returns tasks
+        // Return Single.just(...) to match the expected return type
+        coEvery { getProjectStatesUseCase(projectId) } returns Single.just(oldStates)
+        coEvery { getTasksByProjectStateUseCase(stateId) } returns Single.just(tasks)
         coEvery { createAuditLogUseCase.logUpdate(any(), any(), any(), any()) } returns mockk()
 
         useCase("Updated State", stateId, projectId)
@@ -90,8 +92,8 @@ class UpdateProjectStateUseCaseTest {
     fun `should not update tasks if no tasks exist for state`() = runTest {
         val oldStates = listOf(ProjectState(stateId, "Old State", projectId))
 
-        coEvery { getProjectStatesUseCase(projectId) } returns oldStates
-        coEvery { getTasksByProjectStateUseCase(stateId) } returns emptyList()
+        coEvery { getProjectStatesUseCase(projectId) } returns Single.just(oldStates)
+        coEvery { getTasksByProjectStateUseCase(stateId) } returns Single.just(emptyList())
         coEvery { createAuditLogUseCase.logUpdate(any(), any(), any(), any()) } returns mockk()
 
         useCase("New State", stateId, projectId)
@@ -107,6 +109,4 @@ class UpdateProjectStateUseCaseTest {
         }
         coVerify(exactly = 0) { updateTaskUseCase(any()) }
     }
-
-
 }

@@ -1,11 +1,10 @@
 package data.repository
 
-import org.junit.jupiter.api.Assertions.*
-
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import org.example.data.repository.ProjectStateRepositoryImpl
 import org.example.data.source.remote.contract.RemoteProjectStateDataSource
 import org.example.logic.models.ProjectState
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -22,11 +20,13 @@ class ProjectStateRepositoryImplTest {
     private lateinit var repository: ProjectStateRepositoryImpl
     private lateinit var remoteDataSource: RemoteProjectStateDataSource
     private val projectId1 = Uuid.random()
-    private  val projectState = ProjectState(
-        id = Uuid.random(),
-        title = "ToDO",
-        projectId = projectId1
-    )
+    private val projectState =
+        ProjectState(
+            id = Uuid.random(),
+            title = "ToDO",
+            projectId = projectId1,
+        )
+
     @BeforeEach
     fun setup() {
         remoteDataSource = mockk(relaxed = true)
@@ -34,132 +34,96 @@ class ProjectStateRepositoryImplTest {
     }
 
     @Test
-    fun `createProjectState should return created project state when a new project state created`() = runTest {
-        
-        coEvery { remoteDataSource.createProjectState(projectState) } returns projectState
+    fun `createProjectState should return created project state when a new project state is created`() {
+        every { remoteDataSource.createProjectState(projectState) } returns Single.just(projectState)
 
-        
-        val result = repository.createProjectState(projectState)
+        val result = repository.createProjectState(projectState).blockingGet()
 
-       
         assertEquals(projectState, result)
-        coVerify(exactly = 1) { remoteDataSource.createProjectState(projectState) }
+        verify(exactly = 1) { remoteDataSource.createProjectState(projectState) }
     }
 
     @Test
-    fun `createProjectState should throws exception when remote source fails`() = runTest {
+    fun `createProjectState should throw exception when remote source fails`() {
         val exception = RuntimeException("Network error")
-        coEvery { remoteDataSource.createProjectState(projectState) } throws exception
+        every { remoteDataSource.createProjectState(projectState) } throws exception
 
-         
         assertThrows<RuntimeException> {
-            repository.createProjectState(projectState)
+            repository.createProjectState(projectState).blockingGet()
         }
     }
 
     @Test
-    fun `updateProjectState should return updated project state when an old project state updated`() = runTest {
+    fun `updateProjectState should return updated project state`() {
+        every { remoteDataSource.updateProjectState(projectState) } returns Single.just(projectState)
 
-        coEvery { remoteDataSource.updateProjectState(projectState) } returns projectState
+        val result = repository.updateProjectState(projectState).blockingGet()
 
-        
-        val result = repository.updateProjectState(projectState)
-
-        
         assertEquals(projectState, result)
-        coVerify(exactly = 1) { remoteDataSource.updateProjectState(projectState) }
+        verify(exactly = 1) { remoteDataSource.updateProjectState(projectState) }
     }
 
     @Test
-    fun `updateProjectState should throws exception when remote source fails`()= runTest {
-
+    fun `updateProjectState should throw exception when remote source fails`() {
         val exception = RuntimeException("Network error")
-        coEvery { remoteDataSource.updateProjectState(projectState) } throws exception
+        every { remoteDataSource.updateProjectState(projectState) } throws exception
 
-         
         assertThrows<RuntimeException> {
-            repository.updateProjectState(projectState)
+            repository.updateProjectState(projectState).blockingGet()
         }
     }
 
     @Test
-    fun `deleteProjectState should call remote source when deleting a project state`() = runTest {
-        
+    fun `deleteProjectState should call remote source`() {
         val projectStateId = Uuid.random()
-        coEvery { remoteDataSource.deleteProjectState(projectStateId) } returns Unit
+        every { remoteDataSource.deleteProjectState(projectStateId) } returns Completable.complete()
 
-        
-        repository.deleteProjectState(projectStateId)
+        repository.deleteProjectState(projectStateId).blockingAwait()
 
-        
-        coVerify(exactly = 1) { remoteDataSource.deleteProjectState(projectStateId) }
+        verify(exactly = 1) { remoteDataSource.deleteProjectState(projectStateId) }
     }
 
     @Test
-    fun `deleteProjectState should throws exception when remote source fails`() = runTest {
-        
+    fun `deleteProjectState should throw exception when remote source fails`() {
         val projectStateId = Uuid.random()
         val exception = RuntimeException("Network error")
-        coEvery { remoteDataSource.deleteProjectState(projectStateId) } throws exception
+        every { remoteDataSource.deleteProjectState(projectStateId) } throws exception
 
-         
         assertThrows<RuntimeException> {
-            repository.deleteProjectState(projectStateId)
+            repository.deleteProjectState(projectStateId).blockingAwait()
         }
     }
 
     @Test
-    fun `getProjectStates should return list of project states`() = runTest {
-        
+    fun `getProjectStates should return list of project states`() {
         val projectId = Uuid.random()
         val projectStates = listOf(projectState, projectState.copy(title = "RUN"))
-        coEvery { remoteDataSource.getProjectStates(projectId) } returns projectStates
+        every { remoteDataSource.getProjectStates(projectId) } returns Single.just(projectStates)
 
-        
-        val result = repository.getProjectStates(projectId)
+        val result = repository.getProjectStates(projectId).blockingGet()
 
-        
         assertEquals(projectStates, result)
-        coVerify(exactly = 1) { remoteDataSource.getProjectStates(projectId) }
+        verify(exactly = 1) { remoteDataSource.getProjectStates(projectId) }
     }
 
     @Test
-    fun `getProjectStates should return empty list when no states exist`() = runTest {
-        
+    fun `getProjectStates should return empty list when no states exist`() {
         val projectId = Uuid.random()
-        coEvery { remoteDataSource.getProjectStates(projectId) } returns emptyList()
+        every { remoteDataSource.getProjectStates(projectId) } returns Single.just(emptyList())
 
-        
-        val result = repository.getProjectStates(projectId)
+        val result = repository.getProjectStates(projectId).blockingGet()
 
-        
         assertEquals(emptyList(), result)
     }
 
     @Test
-    fun `getProjectStateById should return project state when exists`() = runTest {
-        
+    fun `getProjectStateById should return project state when exists`() {
         val projectStateId = Uuid.random()
-        coEvery { remoteDataSource.getProjectStateById(projectStateId) } returns projectState
+        every { remoteDataSource.getProjectStateById(projectStateId) } returns Single.just(projectState)
 
-        
-        val result = repository.getProjectStateById(projectStateId)
+        val result = repository.getProjectStateById(projectStateId).blockingGet()
 
-        
         assertEquals(projectState, result)
-        coVerify(exactly = 1) { remoteDataSource.getProjectStateById(projectStateId) }
+        verify(exactly = 1) { remoteDataSource.getProjectStateById(projectStateId) }
     }
-
-    @Test
-    fun `getProjectStateById should return null when project state doesn't exist`() = runTest {
-        
-        val projectStateId = Uuid.random()
-        coEvery { remoteDataSource.getProjectStateById(projectStateId) } returns null
-
-        
-        val result = repository.getProjectStateById(projectStateId)
-
-        
-        assertNull(result)
-    }
-} 
+}

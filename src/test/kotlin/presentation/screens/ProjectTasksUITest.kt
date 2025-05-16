@@ -1,10 +1,10 @@
 package presentation.screens
 
 import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.test.runTest
 import logic.useCase.CreateTaskUseCase
 import mockdata.createProject
@@ -55,8 +55,8 @@ class ProjectTasksUITest {
         isNavigateBackCalled = false
         navigatedTaskId = null
 
-        coEvery { getProjectByIdUseCase.invoke(any()) } returns project
-        coEvery { getProjectTasksUseCase.invoke(any()) } returns projectTasks
+        every { getProjectByIdUseCase.invoke(any()) } returns Single.just(project)
+        every { getProjectTasksUseCase.invoke(any()) } returns Single.just(projectTasks)
     }
 
     private fun createUi(): ProjectTasksUI =
@@ -113,13 +113,21 @@ class ProjectTasksUITest {
     @Test
     fun `should not start create new task flow when project has no states`() =
         runTest {
-            coEvery { getProjectByIdUseCase(any()) } returns createProject(id = ids[0], name = "Test Project")
+            every { getProjectByIdUseCase(any()) } returns
+                Single.just(
+                    createProject(
+                        id = ids[0],
+                        name = "Test Project",
+                    ),
+                )
             every { reader.readInt() } returnsMany listOf(GO_BACK_OPTION)
-            coEvery { getProjectStatesUseCase(any()) } returns emptyList()
-            coEvery { createTaskUseCase.invoke(any(), any(), any()) } returns
-                createTask(
-                    name = "New Task",
-                    stateId = ids[3],
+            every { getProjectStatesUseCase(any()) } returns Single.just(emptyList())
+            every { createTaskUseCase.invoke(any(), any(), any()) } returns
+                Single.just(
+                    createTask(
+                        name = "New Task",
+                        stateId = ids[3],
+                    ),
                 )
 
             createUi()
@@ -139,7 +147,7 @@ class ProjectTasksUITest {
 
     @Test
     fun `should handle project not found exception`() {
-        coEvery { getProjectByIdUseCase.invoke(any()) } throws ProjectNotFoundException()
+        every { getProjectByIdUseCase.invoke(any()) } returns Single.error(ProjectNotFoundException())
 
         createUi()
 
@@ -149,7 +157,7 @@ class ProjectTasksUITest {
 
     @Test
     fun `should handle generic exception when loading tasks`() {
-        coEvery { getProjectTasksUseCase.invoke(any()) } throws RuntimeException("Generic error")
+        every { getProjectTasksUseCase.invoke(any()) } returns Single.error(RuntimeException("Generic error"))
 
         createUi()
 
@@ -159,21 +167,25 @@ class ProjectTasksUITest {
     @Test
     fun `should create a task when valid name and state are provided`() =
         runTest {
-            coEvery { getProjectStatesUseCase.invoke(any()) } returns
-                listOf(
-                    ProjectState(
-                        ids[3],
-                        "In Progress",
-                        ids[0],
+            every { getProjectStatesUseCase.invoke(any()) } returns
+                Single.just(
+                    listOf(
+                        ProjectState(
+                            ids[3],
+                            "In Progress",
+                            ids[0],
+                        ),
                     ),
                 )
             every { reader.readInt() } returnsMany listOf(CREATE_TASK_OPTION, 1, 3)
             every { reader.readString() } returns "Valid Task" andThen "1"
-            coEvery { createTaskUseCase.invoke(any(), any(), any()) } returns
-                createTask(
-                    name = "Valid Task",
-                    projectId = ids[0],
-                    stateId = ids[3],
+            every { createTaskUseCase.invoke(any(), any(), any()) } returns
+                Single.just(
+                    createTask(
+                        name = "Valid Task",
+                        projectId = ids[0],
+                        stateId = ids[3],
+                    ),
                 )
 
             createUi()
@@ -188,12 +200,23 @@ class ProjectTasksUITest {
         runTest {
             every { reader.readInt() } returnsMany listOf(1, 3)
             every { reader.readString() } returnsMany listOf("Invalid,Name", "Valid Name", "1")
-            coEvery { getProjectStatesUseCase.invoke(any()) } returns listOf(ProjectState(ids[3], "State", ids[0]))
-            coEvery { createTaskUseCase.invoke(any(), any(), any()) } returns
-                createTask(
-                    name = "Valid Name",
-                    projectId = ids[0],
-                    stateId = ids[3],
+            every { getProjectStatesUseCase.invoke(any()) } returns
+                    Single.just(
+                    listOf(
+                        ProjectState(
+                            ids[3],
+                            "State",
+                            ids[0],
+                        ),
+                    ),
+                )
+            every { createTaskUseCase.invoke(any(), any(), any()) } returns
+                Single.just(
+                    createTask(
+                        name = "Valid Name",
+                        projectId = ids[0],
+                        stateId = ids[3],
+                    ),
                 )
 
             createUi()
@@ -207,12 +230,23 @@ class ProjectTasksUITest {
         runTest {
             every { reader.readInt() } returnsMany listOf(1, 3)
             every { reader.readString() } returnsMany listOf("Valid Name", "999", "1") // invalid, then valid
-            coEvery { getProjectStatesUseCase.invoke(any()) } returns listOf(ProjectState(ids[3], "State", ids[0]))
-            coEvery { createTaskUseCase.invoke(any(), any(), any()) } returns
-                createTask(
-                    name = "Task",
-                    projectId = ids[0],
-                    stateId = ids[3],
+            every { getProjectStatesUseCase.invoke(any()) } returns
+                    Single.just(
+                        listOf(
+                            ProjectState(
+                            ids[3],
+                            "State",
+                            ids[0],
+                        ),
+                    ),
+                )
+            every { createTaskUseCase.invoke(any(), any(), any()) } returns
+                Single.just(
+                    createTask(
+                        name = "Task",
+                        projectId = ids[0],
+                        stateId = ids[3],
+                    ),
                 )
 
             createUi()
@@ -226,8 +260,23 @@ class ProjectTasksUITest {
         runTest {
             every { reader.readInt() } returnsMany listOf(1, 3)
             every { reader.readString() } returnsMany listOf("Valid Name", "1")
-            coEvery { getProjectStatesUseCase.invoke(any()) } returns listOf(ProjectState(ids[3], "Done", ids[0]))
-            coEvery { createTaskUseCase.invoke(any(), any(), any()) } throws RuntimeException("Task creation failed")
+            every { getProjectStatesUseCase.invoke(any()) } returns
+                    Single.just(
+                        listOf(
+                            ProjectState(
+                                ids[3],
+                            "Done",
+                            ids[0],
+                        ),
+                    ),
+                )
+            every {
+                createTaskUseCase.invoke(
+                    any(),
+                    any(),
+                    any(),
+                )
+            } returns Single.error(RuntimeException("Task creation failed"))
 
             createUi()
 

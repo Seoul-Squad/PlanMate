@@ -5,13 +5,10 @@ import com.mongodb.MongoClientException
 import com.mongodb.MongoException
 import com.mongodb.MongoTimeoutException
 import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.FindFlow
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import io.mockk.*
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
+import com.mongodb.reactivestreams.client.MongoCollection
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.example.data.repository.sources.remote.RemoteAuditLogDataSource
 import org.example.data.source.remote.models.AuditLogDTO
 import org.example.data.source.remote.mongo.MongoAuditLogDataSource
@@ -22,7 +19,6 @@ import org.example.data.utils.Constants.ID
 import org.example.logic.models.AuditLog
 import org.example.logic.models.AuditLog.ActionType
 import org.example.logic.models.AuditLog.EntityType
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -35,7 +31,9 @@ class MongoAuditLogDataSourceTest {
     private lateinit var mongoClientCollection: MongoCollection<AuditLogDTO>
     private lateinit var remoteAuditLogDataSource: RemoteAuditLogDataSource
 
-    private val currentTime = Clock.System.now()
+    private val currentTime =
+        kotlinx.datetime.Clock.System
+            .now()
     private val testAuditLogs =
         listOf(
             AuditLog(
@@ -82,208 +80,215 @@ class MongoAuditLogDataSourceTest {
     }
 
     @Test
-    fun `getEntityLogs should return list of AuditLog when  try to get audit logs from MongoDB`() =
-        runTest {
-            remoteAuditLogDataSource.getEntityLogs(Uuid.random(), EntityType.PROJECT)
+    fun `getEntityLogs should return list of AuditLog when try to get audit logs from MongoDB`() {
+        every { mongoClientCollection.find() } returns mockk()
 
-            coVerify(exactly = 1) { mongoClientCollection.find(filter = any()) }
-        }
+        val testObserver = remoteAuditLogDataSource.getEntityLogs(Uuid.random(), EntityType.PROJECT).test()
 
-    @Test
-    fun `saveAuditLog should return audit log that created when create audit log at MongoDB`() =
-        runTest {
-            val createAuditLog = remoteAuditLogDataSource.saveAuditLog(newAuditLog)
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
 
-            coVerify(exactly = 1) { mongoClientCollection.insertOne(newAuditLogDTO, any()) }
-            assertThat(createAuditLog).isEqualTo(newAuditLog)
-        }
-
-    @Test
-    fun `saveAuditLog should throw MongoClientException when happen incorrect configuration`() =
-        runTest {
-            coEvery { mongoClientCollection.insertOne(newAuditLogDTO, any()) } throws MongoClientException("Error")
-
-            assertThrows<MongoClientException> { remoteAuditLogDataSource.saveAuditLog(newAuditLog) }
-        }
-
-    @Test
-    fun `getEntityLogByLogId should return audit log when get audit log by Id from MongoDB`() =
-        runTest {
-            remoteAuditLogDataSource.getEntityLogByLogId(Uuid.random())
-
-            coVerify(exactly = 1) { mongoClientCollection.find(filter = any()) }
-        }
-
-    @Test
-    fun `getEntityLogByLogId should throw MongoClientException when happen incorrect configuration`() =
-        runTest {
-            coEvery { mongoClientCollection.find(filter = any()) } throws MongoClientException("Error")
-
-            assertThrows<MongoClientException> { remoteAuditLogDataSource.getEntityLogByLogId(Uuid.random()) }
-        }
-
-    @Test
-    fun `deleteAuditLog should delete audit log when delete audit log from MongoDB`() =
-        runTest {
-            remoteAuditLogDataSource.deleteAuditLog(Uuid.random())
-
-            coVerify(exactly = 1) { mongoClientCollection.deleteOne(filter = any(), options = any()) }
-        }
-
-    @Test
-    fun `deleteAuditLog should throw MongoTimeoutException when a connection or operation exceeds its time limit`() =
-        runTest {
-            coEvery { mongoClientCollection.deleteOne(filter = any(), options = any()) } throws MongoTimeoutException("Timeout")
-
-            assertThrows<MongoTimeoutException> { remoteAuditLogDataSource.deleteAuditLog(Uuid.random()) }
-        }
-
-
-    @Test
-    fun `getEntityLogByLogId should return null when log doesn't exist`() = runTest {
-      
-        val auditLogId = Uuid.random()
-        val emptyFindFlow: FindFlow<AuditLogDTO> = mockk(relaxed = true)
-        coEvery { emptyFindFlow.collect(any()) } just Runs
-
-        coEvery {
-            mongoClientCollection.find(
-                Filters.eq(ID, auditLogId.toHexString())
-            )
-        } returns emptyFindFlow
-
-        
-        val result = remoteAuditLogDataSource.getEntityLogByLogId(auditLogId)
-
-       
-        assertNull(result)
-        coVerify(exactly = 1) {
-            mongoClientCollection.find(
-                Filters.eq(ID, auditLogId.toHexString())
-            )
-        }
+        verify(exactly = 1) { mongoClientCollection.find() }
     }
 
     @Test
-    fun `getEntityLogs should throws MongoClientException when `() = runTest {
-       
-        val entityId = Uuid.random()
-        val entityType = EntityType.PROJECT
-        coEvery { mongoClientCollection.find(filter = any()) } throws MongoClientException("Error")
+    fun `saveAuditLog should return audit log that created when create audit log at MongoDB`() {
+        every { mongoClientCollection.insertOne(newAuditLogDTO, any()) } returns mockk()
 
-      
+        val testObserver = remoteAuditLogDataSource.saveAuditLog(newAuditLog).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue(newAuditLog)
+
+        verify(exactly = 1) { mongoClientCollection.insertOne(newAuditLogDTO, any()) }
+    }
+
+    @Test
+    fun `saveAuditLog should throw MongoClientException when happen incorrect configuration`() {
+        every { mongoClientCollection.insertOne(newAuditLogDTO, any()) } throws MongoClientException("Error")
+
         assertThrows<MongoClientException> {
-            remoteAuditLogDataSource.getEntityLogs(entityId, entityType)
+            remoteAuditLogDataSource.saveAuditLog(newAuditLog).blockingGet()
         }
     }
 
     @Test
-    fun `getEntityLogByLogId should throw MongoDB exceptions`() = runTest {
-       
-        val auditLogId = Uuid.random()
-        coEvery { mongoClientCollection.find(filter = any()) } throws MongoClientException("Error")
+    fun `getEntityLogByLogId should return audit log when get audit log by Id from MongoDB`() {
+        every { mongoClientCollection.find() } returns mockk()
 
-       
+        val testObserver = remoteAuditLogDataSource.getEntityLogByLogId(Uuid.random()).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+
+        verify(exactly = 1) { mongoClientCollection.find() }
+    }
+
+    @Test
+    fun `getEntityLogByLogId should throw MongoClientException when happen incorrect configuration`() {
+        every { mongoClientCollection.find() } throws MongoClientException("Error")
+
+        val error =
+            assertThrows<MongoClientException> {
+                remoteAuditLogDataSource.getEntityLogByLogId(Uuid.random()).blockingGet()
+            }
+        assertThat(error).hasMessageThat().contains("Error")
+    }
+
+    @Test
+    fun `deleteAuditLog should delete audit log when delete audit log from MongoDB`() {
+        every { mongoClientCollection.deleteOne(Filters.eq("", "")) } returns mockk()
+
+        val testObserver = remoteAuditLogDataSource.deleteAuditLog(Uuid.random()).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+
+        verify(exactly = 1) { mongoClientCollection.deleteOne(Filters.eq("", "")) }
+    }
+
+    @Test
+    fun `deleteAuditLog should throw MongoTimeoutException when a connection or operation exceeds its time limit`() {
+        every { mongoClientCollection.deleteOne(Filters.eq("", "")) } throws MongoTimeoutException("Timeout")
+
+        val error =
+            assertThrows<MongoTimeoutException> {
+                remoteAuditLogDataSource.deleteAuditLog(Uuid.random()).blockingSubscribe()
+            }
+        assertThat(error).hasMessageThat().contains("Timeout")
+    }
+
+    @Test
+    fun `getEntityLogByLogId should return null when log doesn't exist`() {
+        val auditLogId = Uuid.random()
+
+        every {
+            mongoClientCollection.find(
+                Filters.eq(ID, auditLogId.toHexString()),
+            )
+        } returns mockk()
+
+        val testObserver = remoteAuditLogDataSource.getEntityLogByLogId(auditLogId).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { it == null }
+
+        verify(exactly = 1) {
+            mongoClientCollection.find(
+                Filters.eq(ID, auditLogId.toHexString()),
+            )
+        }
+    }
+
+    @Test
+    fun `getEntityLogs should throws MongoClientException when`() {
+        val entityId = Uuid.random()
+        val entityType = EntityType.PROJECT
+
+        every { mongoClientCollection.find() } throws MongoClientException("Error")
+
+        assertThrows<MongoClientException> {
+            remoteAuditLogDataSource.getEntityLogs(entityId, entityType).blockingGet()
+        }
+    }
+
+    @Test
+    fun `getEntityLogByLogId should throw MongoDB exceptions`() {
+        val auditLogId = Uuid.random()
+
+        every { mongoClientCollection.find() } throws MongoClientException("Error")
+
         assertThrows<MongoException> {
-            remoteAuditLogDataSource.getEntityLogByLogId(auditLogId)
+            remoteAuditLogDataSource.getEntityLogByLogId(auditLogId).blockingGet()
         }
     }
 
     @Test
-    fun `getEntityLogByLogId should return audit log when exists`() = runTest {
-       
+    fun `getEntityLogByLogId should return audit log when exists`() {
         val auditLogId = Uuid.random()
-        val findFlow: FindFlow<AuditLogDTO> = mockk(relaxed = true)
-        coEvery { findFlow.collect(any()) } coAnswers {
-            val collector = firstArg<FlowCollector<AuditLogDTO>>()
-            collector.emit(newAuditLogDTO)
+
+        every {
+            mongoClientCollection.find(
+                Filters.eq(ID, auditLogId.toHexString()),
+            )
+        } returns mockk()
+
+        val testObserver = remoteAuditLogDataSource.getEntityLogByLogId(auditLogId).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue {
+            it.id.toHexString() == newAuditLogDTO.id
         }
 
-        coEvery {
+        verify(exactly = 1) {
             mongoClientCollection.find(
-                Filters.eq(ID, auditLogId.toHexString())
-            )
-        } returns findFlow
-
-        
-        val result = remoteAuditLogDataSource.getEntityLogByLogId(auditLogId)
-
-       
-        assertNotNull(result)
-        assertEquals(newAuditLogDTO.id, result?.id?.toHexString())
-        coVerify(exactly = 1) {
-            mongoClientCollection.find(
-                Filters.eq(ID, auditLogId.toHexString())
-            )
-        }
-    }
-    @Test
-    fun `getEntityLogs should return empty list when no logs exist`() = runTest {
-       
-        val entityId = Uuid.random()
-        val entityType = EntityType.PROJECT
-        val emptyFindFlow: FindFlow<AuditLogDTO> = mockk(relaxed = true)
-        coEvery { emptyFindFlow.collect(any()) } just Runs
-
-        coEvery {
-            mongoClientCollection.find(
-                Filters.and(
-                    Filters.eq(ENTITY_ID, entityId.toHexString()),
-                    Filters.eq(ENTITY_TYPE, entityType.name)
-                )
-            )
-        } returns emptyFindFlow
-
-        
-        val result = remoteAuditLogDataSource.getEntityLogs(entityId, entityType)
-
-       
-        assertEquals(emptyList<AuditLogDTO>(), result)
-        coVerify(exactly = 1) {
-            mongoClientCollection.find(
-                Filters.and(
-                    Filters.eq(ENTITY_ID, entityId.toHexString()),
-                    Filters.eq(ENTITY_TYPE, entityType.name)
-                )
+                Filters.eq(ID, auditLogId.toHexString()),
             )
         }
     }
 
     @Test
-    fun `getEntityLogs should return list of audit logs`() = runTest {
-       
+    fun `getEntityLogs should return empty list when no logs exist`() {
         val entityId = Uuid.random()
         val entityType = EntityType.PROJECT
-        val findFlow: FindFlow<AuditLogDTO> = mockk(relaxed = true)
-        coEvery { findFlow.collect(any()) } coAnswers {
-            val collector = firstArg<FlowCollector<AuditLogDTO>>()
-            collector.emit(newAuditLogDTO)
-        }
 
-        coEvery {
+        every {
             mongoClientCollection.find(
                 Filters.and(
                     Filters.eq(ENTITY_ID, entityId.toHexString()),
-                    Filters.eq(ENTITY_TYPE, entityType.name)
-                )
+                    Filters.eq(ENTITY_TYPE, entityType.name),
+                ),
             )
-        } returns findFlow
+        } returns mockk()
 
-        
-        val result = remoteAuditLogDataSource.getEntityLogs(entityId, entityType)
+        val testObserver = remoteAuditLogDataSource.getEntityLogs(entityId, entityType).test()
 
-       
-        assertEquals(1, result.size)
-        assertEquals(newAuditLogDTO.id, result[0].id.toHexString())
-        coVerify(exactly = 1) {
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { it.isEmpty() }
+
+        verify(exactly = 1) {
             mongoClientCollection.find(
                 Filters.and(
                     Filters.eq(ENTITY_ID, entityId.toHexString()),
-                    Filters.eq(ENTITY_TYPE, entityType.name)
-                )
+                    Filters.eq(ENTITY_TYPE, entityType.name),
+                ),
             )
         }
     }
 
+    @Test
+    fun `getEntityLogs should return list of audit logs`() {
+        val entityId = Uuid.random()
+        val entityType = EntityType.PROJECT
+
+        every {
+            mongoClientCollection.find(
+                Filters.and(
+                    Filters.eq(ENTITY_ID, entityId.toHexString()),
+                    Filters.eq(ENTITY_TYPE, entityType.name),
+                ),
+            )
+        } returns mockk()
+
+        val testObserver = remoteAuditLogDataSource.getEntityLogs(entityId, entityType).test()
+
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { list ->
+            list.size == 1 && list[0].id.toHexString() == newAuditLogDTO.id
+        }
+
+        verify(exactly = 1) {
+            mongoClientCollection.find(
+                Filters.and(
+                    Filters.eq(ENTITY_ID, entityId.toHexString()),
+                    Filters.eq(ENTITY_TYPE, entityType.name),
+                ),
+            )
+        }
+    }
 }
-

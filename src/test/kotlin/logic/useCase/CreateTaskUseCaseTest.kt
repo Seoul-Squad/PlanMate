@@ -1,9 +1,10 @@
 package logic.useCase
 
 import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.test.runTest
 import mockdata.createTask
 import mockdata.createUser
@@ -13,7 +14,7 @@ import org.example.logic.useCase.CreateAuditLogUseCase
 import org.example.logic.useCase.GetCurrentUserUseCase
 import org.example.logic.useCase.Validation
 import org.example.logic.utils.BlankInputException
-import org.example.logic.utils.TaskStateNotFoundException
+import org.example.logic.utils.ProjectStateNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -51,27 +52,28 @@ class CreateTaskUseCaseTest {
     }
 
     @Test
-    fun `should return created task when there is no blank input parameters and project and state exist`() =
-        runTest {
-            val taskName = "Write CreateTaskUseCase test cases"
-            val projectId = Uuid.random()
-            val stateId = Uuid.random()
-            coEvery { getCurrentUserUseCase() } returns createUser()
-            coEvery { taskRepository.createTask(any()) } returns
+    fun `should return created task when there is no blank input parameters and project and state exist`() {
+        val taskName = "Write CreateTaskUseCase test cases"
+        val projectId = Uuid.random()
+        val stateId = Uuid.random()
+        every { getCurrentUserUseCase() } returns Single.just(createUser())
+        every { taskRepository.createTask(any()) } returns
+            Single.just(
                 createTask(
                     name = taskName,
                     projectId = projectId,
                     stateId = stateId,
-                )
+                ),
+            )
 
-            val result = createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId)
+        val result = createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId).blockingGet()
 
-            coVerify { getCurrentUserUseCase() }
-            coVerify { taskRepository.createTask(any()) }
-            assertThat(result.name).isEqualTo(taskName)
-            assertThat(result.projectId).isEqualTo(projectId)
-            assertThat(result.stateId).isEqualTo(stateId)
-        }
+        verify { getCurrentUserUseCase() }
+        verify { taskRepository.createTask(any()) }
+        assertThat(result.name).isEqualTo(taskName)
+        assertThat(result.projectId).isEqualTo(projectId)
+        assertThat(result.stateId).isEqualTo(stateId)
+    }
 
     @ParameterizedTest
     @MethodSource("provideBlankInputScenarios")
@@ -80,25 +82,27 @@ class CreateTaskUseCaseTest {
         projectId: Uuid,
         stateId: Uuid,
     ) = runTest {
-        coEvery { validation.validateInputNotBlankOrThrow(any()) } throws BlankInputException()
+        every { validation.validateInputNotBlankOrThrow(any()) } throws BlankInputException()
 
         assertThrows<BlankInputException> {
-            createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId)
+            createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId).blockingGet()
         }
     }
 
     @Test
-    fun `should throw TaskStateNotFoundException when state doesn't exist`() =
-        runTest {
-            val taskName = "Test"
-            val projectId = Uuid.random()
-            val stateId = Uuid.random()
-            coEvery { projectStateRepository.getProjectStateById(any()) } throws TaskStateNotFoundException()
+    fun `should throw TaskStateNotFoundException when state doesn't exist`() {
+        val taskName = "Test"
+        val projectId = Uuid.random()
+        val stateId = Uuid.random()
+        every { projectStateRepository.getProjectStateById(any()) } returns
+            Single.error(
+                ProjectStateNotFoundException(),
+            )
 
-            assertThrows<TaskStateNotFoundException> {
-                createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId)
-            }
+        assertThrows<ProjectStateNotFoundException> {
+            createTaskUseCase(name = taskName, projectId = projectId, stateId = stateId).blockingGet()
         }
+    }
 
     companion object {
         @JvmStatic

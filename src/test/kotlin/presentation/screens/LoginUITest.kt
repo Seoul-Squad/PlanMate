@@ -1,9 +1,9 @@
 package org.example.presentation.screens
 
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.User
 import org.example.logic.models.UserRole
 import org.example.logic.useCase.LoginUserUseCase
@@ -46,7 +46,7 @@ class LoginUITest {
             )
 
         every { readerMock.readString() } returns username andThen password
-        coEvery { loginUserUseCase(username, password) } returns user
+        every { loginUserUseCase(username, password) } returns Single.just(user)
 
         LoginUI(
             onNavigateToAdminHomeMock,
@@ -70,7 +70,7 @@ class LoginUITest {
             User(id = Uuid.random(), username = username, role = UserRole.USER, authMethod = User.AuthenticationMethod.Password(password))
 
         every { readerMock.readString() } returns username andThen password
-        coEvery { loginUserUseCase(username, password) } returns user
+        every { loginUserUseCase(username, password) } returns Single.just(user)
 
         LoginUI(
             onNavigateToAdminHomeMock,
@@ -88,7 +88,7 @@ class LoginUITest {
     fun `should display error message when username or password is blank`() {
         val exceptionMessage = "Input cannot be blank"
         every { readerMock.readString() } returns "" andThen "password123"
-        coEvery { loginUserUseCase("", "password123") } throws BlankInputException()
+        every { loginUserUseCase("", "password123") } throws BlankInputException()
 
         LoginUI(
             onNavigateToAdminHomeMock,

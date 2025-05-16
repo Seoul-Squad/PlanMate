@@ -1,125 +1,148 @@
 package logic.useCase
 
+import io.reactivex.rxjava3.core.Completable
 import org.example.logic.useCase.Validation
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.InvalidUsernameException
 import org.example.logic.utils.ProjectCreationFailedException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 class ValidationTest {
- private lateinit var validation: Validation
+    private lateinit var validation: Validation
 
- @BeforeEach
- fun setUp() {
-  validation = Validation()
- }
+    @BeforeEach
+    fun setUp() {
+        validation = Validation()
+    }
 
- // validateProjectNameOrThrow tests
- @Test
- fun `validateProjectNameOrThrow should accept valid project name`() {
+    @Test
+    fun `validateProjectNameOrThrow should accept valid project name`() {
+        Completable
+            .fromAction {
+                validation.validateProjectNameOrThrow("Valid Project")
+            }.test()
+            .assertComplete()
+    }
 
-  validation.validateProjectNameOrThrow("Valid Project")
- }
+    @Test
+    fun `validateProjectNameOrThrow should throw BlankInputException when project name is blank`() {
+        Completable
+            .fromAction {
+                validation.validateProjectNameOrThrow("")
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
- @Test
- fun `validateProjectNameOrThrow should throw BlankInputException when project name is blank`() {
+    @Test
+    fun `validateProjectNameOrThrow should throw BlankInputException when project name is only whitespace`() {
+        Completable
+            .fromAction {
+                validation.validateProjectNameOrThrow("   ")
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
-  assertThrows<BlankInputException> {
-   validation.validateProjectNameOrThrow("")
-  }
- }
+    @Test
+    fun `validateProjectNameOrThrow should throw ProjectCreationFailedException when project name is longer than 16 characters`() {
+        Completable
+            .fromAction {
+                validation.validateProjectNameOrThrow("This Project Name Is Way Too Long")
+            }.test()
+            .assertError(ProjectCreationFailedException::class.java)
+    }
 
- @Test
- fun `validateProjectNameOrThrow should throw BlankInputException when project name is only whitespace`() {
+    // validateCreateMateUsernameAndPasswordOrThrow tests
+    @Test
+    fun `validateCreateMateUsernameAndPasswordOrThrow should accept valid username and password`() {
+        Completable
+            .fromAction {
+                validation.validateCreateMateUsernameAndPasswordOrThrow("validuser", "validpass")
+            }.test()
+            .assertComplete()
+    }
 
-  assertThrows<BlankInputException> {
-   validation.validateProjectNameOrThrow("   ")
-  }
- }
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   ", "\t", "\n"])
+    fun `validateCreateMateUsernameAndPasswordOrThrow should throw BlankInputException when username is blank`(username: String) {
+        Completable
+            .fromAction {
+                validation.validateCreateMateUsernameAndPasswordOrThrow(username, "validpass")
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
- @Test
- fun `validateProjectNameOrThrow should throw ProjectCreationFailedException when project name is longer than 16 characters`() {
-  assertThrows<ProjectCreationFailedException> {
-   validation.validateProjectNameOrThrow("This Project Name Is Way Too Long")
-  }
- }
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   ", "\t", "\n"])
+    fun `validateCreateMateUsernameAndPasswordOrThrow should throw BlankInputException when password is blank`(password: String) {
+        Completable
+            .fromAction {
+                validation.validateCreateMateUsernameAndPasswordOrThrow("validuser", password)
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
- // validateCreateMateUsernameAndPasswordOrThrow tests
- @Test
- fun `validateCreateMateUsernameAndPasswordOrThrow should accept valid username and password`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["user name", "user\tname", "user\nname", "user space"])
+    fun `validateCreateMateUsernameAndPasswordOrThrow should throw InvalidUsernameException when username contains whitespace`(
+        username: String,
+    ) {
+        Completable
+            .fromAction {
+                validation.validateCreateMateUsernameAndPasswordOrThrow(username, "validpass")
+            }.test()
+            .assertError(InvalidUsernameException::class.java)
+    }
 
-  validation.validateCreateMateUsernameAndPasswordOrThrow("validuser", "validpass")
- }
+    // validateLoginUsernameAndPasswordOrThrow tests
+    @Test
+    fun `validateLoginUsernameAndPasswordOrThrow should accept valid username and password`() {
+        Completable
+            .fromAction {
+                validation.validateLoginUsernameAndPasswordOrThrow("validuser", "validpass")
+            }.test()
+            .assertComplete()
+    }
 
- @ParameterizedTest
- @ValueSource(strings = ["", "   ", "\t", "\n"])
- fun `validateCreateMateUsernameAndPasswordOrThrow should throw BlankInputException when username is blank`(username: String) {
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   ", "\t", "\n"])
+    fun `validateLoginUsernameAndPasswordOrThrow should throw BlankInputException when username is blank`(username: String) {
+        Completable
+            .fromAction {
+                validation.validateLoginUsernameAndPasswordOrThrow(username, "validpass")
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
-  assertThrows<BlankInputException> {
-   validation.validateCreateMateUsernameAndPasswordOrThrow(username, "validpass")
-  }
- }
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   ", "\t", "\n"])
+    fun `validateLoginUsernameAndPasswordOrThrow should throw BlankInputException when password is blank`(password: String) {
+        Completable
+            .fromAction {
+                validation.validateLoginUsernameAndPasswordOrThrow("validuser", password)
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 
- @ParameterizedTest
- @ValueSource(strings = ["", "   ", "\t", "\n"])
- fun `validateCreateMateUsernameAndPasswordOrThrow should throw BlankInputException when password is blank`(password: String) {
+    // validateInputNotBlankOrThrow tests
+    @Test
+    fun `validateInputNotBlankOrThrow should accept non-blank input`() {
+        Completable
+            .fromAction {
+                validation.validateInputNotBlankOrThrow("valid input")
+            }.test()
+            .assertComplete()
+    }
 
-  assertThrows<BlankInputException> {
-   validation.validateCreateMateUsernameAndPasswordOrThrow("validuser", password)
-  }
- }
-
- @ParameterizedTest
- @ValueSource(strings = ["user name", "user\tname", "user\nname", "user space"])
- fun `validateCreateMateUsernameAndPasswordOrThrow should throw InvalidUsernameException when username contains whitespace`(username: String) {
-
-  assertThrows<InvalidUsernameException> {
-   validation.validateCreateMateUsernameAndPasswordOrThrow(username, "validpass")
-  }
- }
-
- // validateLoginUsernameAndPasswordOrThrow tests
- @Test
- fun `validateLoginUsernameAndPasswordOrThrow should accept valid username and password`() {
-
-  validation.validateLoginUsernameAndPasswordOrThrow("validuser", "validpass")
- }
-
- @ParameterizedTest
- @ValueSource(strings = ["", "   ", "\t", "\n"])
- fun `validateLoginUsernameAndPasswordOrThrow should throw BlankInputException when username is blank`(username: String) {
-
-  assertThrows<BlankInputException> {
-   validation.validateLoginUsernameAndPasswordOrThrow(username, "validpass")
-  }
- }
-
- @ParameterizedTest
- @ValueSource(strings = ["", "   ", "\t", "\n"])
- fun `validateLoginUsernameAndPasswordOrThrow should throw BlankInputException when password is blank`(password: String) {
-
-  assertThrows<BlankInputException> {
-   validation.validateLoginUsernameAndPasswordOrThrow("validuser", password)
-  }
- }
-
- // validateInputNotBlankOrThrow tests
- @Test
- fun `validateInputNotBlankOrThrow should accept non-blank input`() {
-
-  validation.validateInputNotBlankOrThrow("valid input")
- }
-
- @ParameterizedTest
- @ValueSource(strings = ["", "   ", "\t", "\n"])
- fun `validateInputNotBlankOrThrow should throw BlankInputException when input is blank`(input: String) {
-
-  assertThrows<BlankInputException> {
-   validation.validateInputNotBlankOrThrow(input)
-  }
- }
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   ", "\t", "\n"])
+    fun `validateInputNotBlankOrThrow should throw BlankInputException when input is blank`(input: String) {
+        Completable
+            .fromAction {
+                validation.validateInputNotBlankOrThrow(input)
+            }.test()
+            .assertError(BlankInputException::class.java)
+    }
 }

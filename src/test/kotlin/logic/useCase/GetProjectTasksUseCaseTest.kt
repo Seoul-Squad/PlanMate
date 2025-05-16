@@ -1,17 +1,16 @@
 package logic.useCase
 
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.observers.TestObserver
 import org.example.logic.models.Task
 import org.example.logic.repositries.TaskRepository
 import org.example.logic.useCase.GetProjectTasksUseCase
 import org.example.logic.utils.NoTasksFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -59,70 +58,70 @@ class GetProjectTasksUseCaseTest {
     }
 
     @Test
-    fun `should return only tasks for the specified project when tasks exist`() = runTest {
-   
-        coEvery { taskRepository.getAllTasks() } returns tasks
+    fun `should return only tasks for the specified project when tasks exist`() {
+        every { taskRepository.getAllTasks() } returns Single.just(tasks)
 
-       
-        val result = getProjectTasksUseCase(projectId)
+        val testObserver: TestObserver<List<Task>> = getProjectTasksUseCase(projectId).test()
 
-       
-        assertEquals(2, result.size)
-        result.forEach { task ->
-            assertEquals(projectId, task.projectId)
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { filteredTasks ->
+            filteredTasks.size == 2 && filteredTasks.all { it.projectId == projectId }
         }
-        coVerify(exactly = 1) { taskRepository.getAllTasks() }
+
+        verify(exactly = 1) { taskRepository.getAllTasks() }
     }
 
     @Test
-    fun `should return empty list when no tasks exist for the project`() = runTest {
-   
-        coEvery { taskRepository.getAllTasks() } returns tasks
+    fun `should return empty list when no tasks exist for the project`() {
+        every { taskRepository.getAllTasks() } returns Single.just(tasks)
 
-       
-        val result = getProjectTasksUseCase(Uuid.random())
+        val testObserver: TestObserver<List<Task>> = getProjectTasksUseCase(Uuid.random()).test()
 
-       
-        assertEquals(emptyList(), result)
-        coVerify(exactly = 1) { taskRepository.getAllTasks() }
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { it.isEmpty() }
+
+        verify(exactly = 1) { taskRepository.getAllTasks() }
     }
 
     @Test
-    fun `should return empty list when no tasks exist at all`() = runTest {
-   
-        coEvery { taskRepository.getAllTasks() } returns emptyList()
+    fun `should return empty list when no tasks exist at all`() {
+        every { taskRepository.getAllTasks() } returns Single.just(emptyList())
 
-       
-        val result = getProjectTasksUseCase(projectId)
+        val testObserver: TestObserver<List<Task>> = getProjectTasksUseCase(projectId).test()
 
-       
-        assertEquals(emptyList(), result)
-        coVerify(exactly = 1) { taskRepository.getAllTasks() }
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue { it.isEmpty() }
+
+        verify(exactly = 1) { taskRepository.getAllTasks() }
     }
 
     @Test
-    fun `should propagate NoTasksFoundException from repository`() = runTest {
-   
-        coEvery { taskRepository.getAllTasks() } throws NoTasksFoundException()
+    fun `should propagate NoTasksFoundException from repository`() {
+        val exception = NoTasksFoundException()
+        every { taskRepository.getAllTasks() } returns Single.error(exception)
 
-        
-        assertThrows<NoTasksFoundException> {
-            getProjectTasksUseCase(projectId)
-        }
-        coVerify(exactly = 1) { taskRepository.getAllTasks() }
+        val testObserver: TestObserver<List<Task>> = getProjectTasksUseCase(projectId).test()
+
+        testObserver.assertError(NoTasksFoundException::class.java)
+        testObserver.assertNotComplete()
+
+        verify(exactly = 1) { taskRepository.getAllTasks() }
     }
 
     @Test
-    fun `should handle repository runtime exceptions`() = runTest {
-   
+    fun `should handle repository runtime exceptions`() {
         val errorMessage = "Database connection failed"
-        coEvery { taskRepository.getAllTasks() } throws RuntimeException(errorMessage)
+        val runtimeException = RuntimeException(errorMessage)
+        every { taskRepository.getAllTasks() } returns Single.error(runtimeException)
 
-       
-        val exception = assertThrows<RuntimeException> {
-            getProjectTasksUseCase(projectId)
-        }
-        assertEquals(errorMessage, exception.message)
-        coVerify(exactly = 1) { taskRepository.getAllTasks() }
+        val testObserver: TestObserver<List<Task>> = getProjectTasksUseCase(projectId).test()
+
+        testObserver.assertError(RuntimeException::class.java)
+        testObserver.assertNotComplete()
+
+        verify(exactly = 1) { taskRepository.getAllTasks() }
     }
 }
