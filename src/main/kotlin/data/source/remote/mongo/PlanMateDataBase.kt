@@ -2,7 +2,6 @@ package org.example.data.source.remote.mongo
 
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
-import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoCollection
 import data.source.remote.mongo.utils.AuthenticationMethodDtoCodec
@@ -34,9 +33,6 @@ object PlanMateDataBase {
             .applyConnectionString(ConnectionString(uri))
             .codecRegistry(codecRegistry)
             .build()
-
-    private val clientCoroutines = MongoClient.create(settings)
-    private val databaseCoroutines = clientCoroutines.getDatabase(Constants.DATABASE_NAME)
 
     private val clientRx = MongoClients.create(settings)
     private val databaseRx = clientRx.getDatabase(Constants.DATABASE_NAME)
