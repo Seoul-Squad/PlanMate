@@ -6,35 +6,6 @@ import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 
-suspend fun <T> executeMongoOperation(operation: suspend () -> T): T =
-    try {
-        operation()
-    } catch (mongoCommandException: MongoCommandException) {
-        throw mongoCommandException
-    } catch (mongoSecurityException: MongoSecurityException) {
-        throw mongoSecurityException
-    } catch (mongoSocketOpenException: MongoSocketOpenException) {
-        throw mongoSocketOpenException
-    } catch (mongoTimeoutException: MongoTimeoutException) {
-        throw mongoTimeoutException
-    } catch (mongoWriteException: MongoWriteException) {
-        throw mongoWriteException
-    } catch (mongoClientException: MongoClientException) {
-        throw mongoClientException
-    } catch (mongoBulkWriteException: MongoBulkWriteException) {
-        throw mongoBulkWriteException
-    } catch (mongoInterruptedException: MongoInterruptedException) {
-        throw mongoInterruptedException
-    } catch (mongoExecutionTimeoutException: MongoExecutionTimeoutException) {
-        throw mongoExecutionTimeoutException
-    } catch (mongoNodeIsRecoveringException: MongoNodeIsRecoveringException) {
-        throw mongoNodeIsRecoveringException
-    } catch (mongoNotPrimaryException: MongoNotPrimaryException) {
-        throw mongoNotPrimaryException
-    } catch (unexpectedException: Exception) {
-        throw unexpectedException
-    }
-
 inline fun <reified T : Any> executeMongoOperationRx(crossinline operation: () -> T): T {
     val source = operation()
 
