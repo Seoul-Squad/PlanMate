@@ -13,6 +13,7 @@ import org.example.data.source.remote.mongo.utils.mapper.toStateDTO
 import org.example.data.utils.Constants.ID
 import org.example.data.utils.Constants.PROJECT_ID
 import org.example.logic.models.ProjectState
+import org.example.logic.utils.ProjectStateNotFoundException
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -50,6 +51,13 @@ class MongoProjectStateDataSource(
             Single
                 .fromPublisher(mongoClient.find(Filters.eq(ID, projectStateId.toHexString())).first())
                 .map { it.toState() }
+                .onErrorResumeNext { error ->
+                    if (error is NoSuchElementException) {
+                        Single.error(ProjectStateNotFoundException())
+                    } else {
+                        Single.error(error)
+                    }
+                }
         }
 
     override fun getProjectStates(projectId: Uuid): Single<List<ProjectState>> =

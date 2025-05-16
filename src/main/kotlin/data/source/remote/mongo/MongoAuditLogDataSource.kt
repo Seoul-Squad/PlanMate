@@ -10,6 +10,7 @@ import org.example.data.source.remote.models.AuditLogDTO
 import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLog
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLogDTO
+import org.example.data.utils.Constants.ENTITY_ID
 import org.example.data.utils.Constants.ID
 import org.example.logic.models.AuditLog
 import kotlin.uuid.ExperimentalUuidApi
@@ -43,7 +44,7 @@ class MongoAuditLogDataSource(
         entityType: AuditLog.EntityType,
     ): Single<List<AuditLog>> =
         executeMongoOperationRx {
-            val entityPublisher = auditLogCollection.find(Filters.eq(ID, entityId.toHexString()))
+            val entityPublisher = auditLogCollection.find(Filters.eq(ENTITY_ID, entityId.toHexString()))
             Flowable
                 .fromPublisher(entityPublisher)
                 .map { auditLogDTO ->

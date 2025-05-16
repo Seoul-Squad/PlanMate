@@ -12,6 +12,7 @@ import org.example.data.source.remote.mongo.utils.mapper.toProject
 import org.example.data.source.remote.mongo.utils.mapper.toProjectDTO
 import org.example.data.utils.Constants.ID
 import org.example.logic.models.Project
+import org.example.logic.utils.ProjectNotFoundException
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -68,6 +69,12 @@ class MongoProjectDataSource(
                 .fromPublisher(projectCollection.find(Filters.eq(ID, projectId.toHexString())))
                 .map { projectDTO ->
                     projectDTO.toProject()
+                }.onErrorResumeNext { error ->
+                    if (error is NoSuchElementException) {
+                        Single.error(ProjectNotFoundException())
+                    } else {
+                        Single.error(error)
+                    }
                 }
         }
 }
