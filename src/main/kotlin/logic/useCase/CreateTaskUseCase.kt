@@ -24,7 +24,7 @@ class CreateTaskUseCase(
         name: String,
         projectId: Uuid,
         stateId: Uuid,
-    ): Task {
+    ): Single<Task> {
         validation.validateInputNotBlankOrThrow(name)
         val state = getState(stateId)
         val currentUser = getCurrentUserUseCase().blockingGet()
