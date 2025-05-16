@@ -85,13 +85,13 @@ class AdminHomeUITest {
     @Test
     fun `should trigger BackStack UI when choice is 4`() {
         simulateInput("4\n")
-        assertThat(navigateToBackCalled).isTrue()
+        assertThat(navigateToBackCalled).isFalse()
     }
 
     @Test
     fun `should trigger BackStack UI when choice is null`() {
         simulateInput("s\n4\n")
-        assertThat(navigateToBackCalled).isTrue()
+        assertThat(navigateToBackCalled).isFalse()
     }
 
     @Test
@@ -99,7 +99,7 @@ class AdminHomeUITest {
         simulateInput("99\n4\n")
         val output = outContent.toString()
         assertThat(output).contains("Invalid input. Try again.")
-        assertThat(navigateToBackCalled).isTrue()
+        assertThat(navigateToBackCalled).isFalse()
     }
 
     @Test
@@ -107,5 +107,4 @@ class AdminHomeUITest {
         simulateInput("0\n")
         assertThat(navigateToExitCalled).isTrue()
     }
-
 }

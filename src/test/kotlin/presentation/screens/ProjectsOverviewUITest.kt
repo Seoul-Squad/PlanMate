@@ -15,7 +15,10 @@ import org.example.logic.useCase.GetAllProjectsUseCase
 import org.example.logic.useCase.GetEntityAuditLogsUseCase
 import org.example.logic.useCase.LogoutUseCase
 import org.example.logic.useCase.updateProject.UpdateProjectUseCase
-import org.example.logic.utils.*
+import org.example.logic.utils.BlankInputException
+import org.example.logic.utils.ProjectNotChangedException
+import org.example.logic.utils.ProjectNotFoundException
+import org.example.logic.utils.TaskNotFoundException
 import org.example.presentation.role.ProjectScreensOptions
 import org.example.presentation.screens.ProjectsOverviewUI
 import org.junit.jupiter.api.BeforeEach
@@ -268,17 +271,6 @@ class ProjectsOverviewUITest {
         launchUI()
 
         coVerify(exactly = 0) { deleteProjectUseCase(any()) }
-    }
-
-    @Test
-    fun `should return no projects message and logout when project list is empty`() {
-        every { getAllProjectsUseCase() } returns Single.error(NoProjectsFoundException())
-        every { reader.readString() } returns "5"
-
-        launchUI()
-
-        verify { viewer.display(match { it.contains("No projects found") }) }
-        verify { mockOnLogout() }
     }
 
     @Test

@@ -9,6 +9,7 @@ import io.reactivex.rxjava3.core.Single
 import mockdata.createTask
 import org.example.data.repository.TaskRepositoryImpl
 import org.example.data.repository.sources.remote.RemoteTaskDataSource
+import org.example.data.source.remote.RoleValidationInterceptor
 import org.example.logic.utils.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -40,6 +41,7 @@ class TaskRepositoryImplTest {
             testTask,
             createTask(id = id2, name = "Task 2"),
         )
+    private lateinit var roleValidationInterceptor: RoleValidationInterceptor
 
     @BeforeEach
     fun setUp() {
@@ -59,14 +61,9 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw TaskCreationFailedException when createTask fails`() {
-        every { mockRemoteDataSource.createTask(testTask) } throws RuntimeException("error")
+        every { mockRemoteDataSource.createTask(testTask) } returns Single.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.createTask(testTask).blockingGet()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(TaskCreationFailedException::class.java)
+        taskRepositoryImpl.createTask(testTask).test().assertError(TaskCreationFailedException::class.java)
     }
 
     @Test
@@ -81,14 +78,9 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw TaskNotChangedException when updateTask fails`() {
-        every { mockRemoteDataSource.updateTask(updatedTask) } throws RuntimeException("error")
+        every { mockRemoteDataSource.updateTask(updatedTask) } returns Single.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.updateTask(updatedTask).blockingGet()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(TaskNotChangedException::class.java)
+        taskRepositoryImpl.updateTask(updatedTask).test().assertError(TaskNotChangedException::class.java)
     }
 
     @Test
@@ -102,14 +94,9 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw TaskDeletionFailedException when deleteTask fails`() {
-        every { mockRemoteDataSource.deleteTask(testTask.id) } throws RuntimeException("error")
+        every { mockRemoteDataSource.deleteTask(testTask.id) } returns Completable.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.deleteTask(testTask.id).blockingAwait()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(TaskDeletionFailedException::class.java)
+        taskRepositoryImpl.deleteTask(testTask.id).test().assertError(TaskDeletionFailedException::class.java)
     }
 
     @Test
@@ -125,14 +112,9 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw NoTasksFoundException when getAllTasks fails`() {
-        every { mockRemoteDataSource.getAllTasks() } throws RuntimeException("error")
+        every { mockRemoteDataSource.getAllTasks() } returns Single.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.getAllTasks().blockingGet()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(NoTasksFoundException::class.java)
+        taskRepositoryImpl.getAllTasks().test().assertError(NoTasksFoundException::class.java)
     }
 
     @Test
@@ -147,14 +129,9 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw NoTaskFoundException when getTaskById fails`() {
-        every { mockRemoteDataSource.getTaskById(testTask.id) } throws RuntimeException("error")
+        every { mockRemoteDataSource.getTaskById(testTask.id) } returns Single.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.getTaskById(testTask.id).blockingGet()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(NoTaskFoundException::class.java)
+        taskRepositoryImpl.getTaskById(testTask.id).test().assertError(NoTaskFoundException::class.java)
     }
 
     @Test
@@ -169,13 +146,8 @@ class TaskRepositoryImplTest {
 
     @Test
     fun `should throw NoTaskFoundException when getTasksByProjectState fails`() {
-        every { mockRemoteDataSource.getTasksByProjectState(id1) } throws RuntimeException("error")
+        every { mockRemoteDataSource.getTasksByProjectState(id1) } returns Single.error(RuntimeException("error"))
 
-        val exception =
-            runCatching {
-                taskRepositoryImpl.getTasksByProjectState(id1).blockingGet()
-            }.exceptionOrNull()
-
-        assertThat(exception).isInstanceOf(NoTaskFoundException::class.java)
+        taskRepositoryImpl.getTasksByProjectState(id1).test().assertError(NoTaskFoundException::class.java)
     }
 }

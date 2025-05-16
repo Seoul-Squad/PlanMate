@@ -6,6 +6,7 @@ import mockdata.createAuditLog
 import mockdata.createProject
 import mockdata.createTask
 import org.example.logic.models.AuditLog
+import org.example.logic.models.ProjectState
 import org.example.logic.useCase.*
 import org.example.presentation.screens.TaskInformationUI
 import org.junit.jupiter.api.BeforeEach
@@ -89,25 +90,41 @@ class TaskInformationUITest {
 
     @Test
     fun `should return update task flow when choice is 1`() {
+        val projectStates =
+            listOf(
+                ProjectState(id = ids[5], title = "New State", projectId = sampleTask.projectId),
+            )
+
         coEvery { getTaskByIdUseCase(ids[0]) } returns Single.just(sampleTask)
-        every { reader.readString() } returnsMany listOf("1", "New Name", "New State", "4")
+        coEvery { getProjectStatesUseCase(sampleTask.projectId) } returns Single.just(projectStates)
+        every { reader.readString() } returnsMany listOf("1", "New Name", "4")
+        every { reader.readInt() } returns 1
 
         taskInformationUi.showTaskInformation(ids[0])
 
-        val expectedUpdated = sampleTask.copy(name = "New Name")
+        val expectedUpdated = sampleTask.copy(name = "New Name", stateId = ids[5], stateName = "New State")
         coVerify { updateTaskUseCase(expectedUpdated) }
-        verify { viewer.display(any()) }
+        verify { viewer.display("Task updated successfully.") }
     }
 
     @Test
-    fun `should return delete task flow when choice is 2 `() {
+    fun `should update task with default values when new name and state id are blank`() {
+        val projectStates =
+            listOf(
+                ProjectState(id = sampleTask.stateId, title = sampleTask.stateName, projectId = sampleTask.projectId),
+            )
+
         coEvery { getTaskByIdUseCase(ids[0]) } returns Single.just(sampleTask)
-        every { reader.readString() } returnsMany listOf("2", "y")
+        coEvery { getProjectStatesUseCase(sampleTask.projectId) } returns Single.just(projectStates)
+        every { reader.readString() } returnsMany listOf("1", "", "4")
+        every { reader.readInt() } returns null
 
         taskInformationUi.showTaskInformation(ids[0])
 
-        coVerify { deleteTaskUseCase(ids[0]) }
-        verify { viewer.display(any()) }
+        val expectedTask =
+            sampleTask.copy(name = sampleTask.name, stateId = sampleTask.stateId, stateName = sampleTask.stateName)
+        coVerify { updateTaskUseCase(expectedTask) }
+        verify { viewer.display("Task updated successfully.") }
     }
 
     @Test
@@ -202,24 +219,6 @@ class TaskInformationUITest {
 
         taskInformationUi.showTaskInformation(ids[0])
 
-        verify { viewer.display(any()) }
-    }
-
-    @Test
-    fun `should update task with default values when new name and sate id are blank`() {
-        coEvery { getTaskByIdUseCase(ids[0]) } returns Single.just(sampleTask)
-        every { reader.readString() } returnsMany
-            listOf(
-                "1",
-                "",
-                "",
-                "4",
-            )
-
-        taskInformationUi.showTaskInformation(ids[0])
-
-        val expectedTask = sampleTask.copy(name = sampleTask.name, stateId = sampleTask.stateId)
-        coVerify { updateTaskUseCase(expectedTask) }
         verify { viewer.display(any()) }
     }
 }

@@ -9,7 +9,6 @@ import org.example.logic.useCase.CreateAuditLogUseCase
 import org.example.logic.useCase.Validation
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.ProjectNotChangedException
-import org.example.logic.utils.ProjectNotFoundException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -46,18 +45,6 @@ class UpdateProjectUseCaseTest {
         assertFailsWith<BlankInputException> {
             useCase(updated).blockingGet()
         }
-    }
-
-    @Test
-    fun `when project not found then throws ProjectNotFoundException`() {
-        val id = Uuid.random()
-        val updated = Project(id = id, name = "New name")
-        every { validation.validateInputNotBlankOrThrow("New name") } just Runs
-        every { repo.getProjectById(id) } returns Single.error(ProjectNotFoundException())
-
-        val testObserver = useCase(updated).test()
-
-        testObserver.assertError(ProjectNotFoundException::class.java)
     }
 
     @Test

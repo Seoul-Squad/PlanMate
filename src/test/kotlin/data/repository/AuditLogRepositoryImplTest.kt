@@ -11,7 +11,6 @@ import org.example.logic.models.AuditLog
 import org.example.logic.utils.AuditLogCreationFailedException
 import org.example.logic.utils.AuditLogDeletionFailedException
 import org.example.logic.utils.AuditLogNotFoundException
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -56,9 +55,7 @@ class AuditLogRepositoryImplTest {
     fun `should throw AuditLogCreationFailedException when createAuditLog fails`() {
         every { remoteAuditLogDataSource.saveAuditLog(dummyLog) } returns Single.error(RuntimeException())
 
-        assertThrows(AuditLogCreationFailedException::class.java) {
-            repository.createAuditLog(dummyLog).blockingGet()
-        }
+        repository.createAuditLog(dummyLog).test().assertError(AuditLogCreationFailedException::class.java)
     }
 
     @Test
@@ -75,9 +72,7 @@ class AuditLogRepositoryImplTest {
     fun `should throw AuditLogDeletionFailedException when deleteAuditLog fails`() {
         every { remoteAuditLogDataSource.deleteAuditLog(dummyLog.id) } returns Completable.error(RuntimeException())
 
-        assertThrows(AuditLogDeletionFailedException::class.java) {
-            repository.deleteAuditLog(dummyLog.id).blockingAwait()
-        }
+        repository.deleteAuditLog(dummyLog.id).test().assertError(AuditLogDeletionFailedException::class.java)
     }
 
     @Test
@@ -101,9 +96,10 @@ class AuditLogRepositoryImplTest {
             remoteAuditLogDataSource.getEntityLogs(dummyLog.entityId, dummyLog.entityType)
         } returns Single.error(RuntimeException())
 
-        assertThrows(AuditLogNotFoundException::class.java) {
-            repository.getEntityLogs(dummyLog.entityId, dummyLog.entityType).blockingGet()
-        }
+        repository
+            .getEntityLogs(dummyLog.entityId, dummyLog.entityType)
+            .test()
+            .assertError(AuditLogNotFoundException::class.java)
     }
 
     @Test
@@ -122,8 +118,6 @@ class AuditLogRepositoryImplTest {
     fun `should throw AuditLogNotFoundException when getEntityLogByLogId fails`() {
         every { remoteAuditLogDataSource.getEntityLogByLogId(dummyLog.id) } returns Single.error(RuntimeException())
 
-        assertThrows(AuditLogNotFoundException::class.java) {
-            repository.getEntityLogByLogId(dummyLog.id).blockingGet()
-        }
+        repository.getEntityLogByLogId(dummyLog.id).test().assertError(AuditLogNotFoundException::class.java)
     }
 }

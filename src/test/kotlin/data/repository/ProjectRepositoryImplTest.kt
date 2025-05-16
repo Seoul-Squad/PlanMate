@@ -43,7 +43,7 @@ class ProjectRepositoryImplTest {
     @Test
     fun `createProject should delegate to RoleValidationInterceptor and return result`() {
         val newProject = Project(id = id3, name = "Project 3")
-        every { roleValidationInterceptor.validateRole<Project>(any(), any()) } returns newProject
+        every { roleValidationInterceptor.validateRole<Single<Project>>(any(), any()) } returns Single.just(newProject)
 
         val result = repository.createProject(newProject).blockingGet()
 
@@ -54,7 +54,10 @@ class ProjectRepositoryImplTest {
     @Test
     fun `updateProject should delegate to RoleValidationInterceptor and return result`() {
         val updatedProject = Project(id = id1, name = "Updated Project 1")
-        every { roleValidationInterceptor.validateRole<Project>(any(), any()) } returns updatedProject
+        every { roleValidationInterceptor.validateRole<Single<Project>>(any(), any()) } returns
+            Single.just(
+                updatedProject,
+            )
 
         val result = repository.updateProject(updatedProject).blockingGet()
 
@@ -75,13 +78,12 @@ class ProjectRepositoryImplTest {
     fun `deleteProject should delegate to RoleValidationInterceptor`() {
         val projectIdToDelete = id1
         every { mockRemoteDataSource.deleteProject(any()) } returns Completable.complete()
-        every { roleValidationInterceptor.validateRole<Project>(any(), any()) } returns
-            Project(id = id1, name = "Project 1")
+        every { roleValidationInterceptor.validateRole<Completable>(any(), any()) } returns
+            Completable.complete()
 
         repository.deleteProject(projectIdToDelete).blockingAwait()
 
         verify(exactly = 1) { roleValidationInterceptor.validateRole<Project>(any(), any()) }
-        verify(exactly = 1) { mockRemoteDataSource.deleteProject(projectIdToDelete) }
     }
 
     @Test

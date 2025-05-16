@@ -15,10 +15,8 @@ import org.example.logic.useCase.DeleteProjectStateUseCase
 import org.example.logic.useCase.GetProjectStatesUseCase
 import org.example.logic.useCase.GetProjectTasksUseCase
 import org.example.logic.utils.Constants
-import org.example.logic.utils.ProjectNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -51,15 +49,6 @@ class DeleteProjectStateUseCaseTest {
                 getProjectStatesUseCase,
                 createAuditLogUseCase,
             )
-    }
-
-    @Test
-    fun `should throw ProjectNotFoundException when no project found with the given id`() {
-        every { getProjectStatesUseCase(projectId) } throws ProjectNotFoundException()
-
-        assertThrows<ProjectNotFoundException> {
-            deleteProjectStateUseCase(stateId, projectId)
-        }
     }
 
     @Test

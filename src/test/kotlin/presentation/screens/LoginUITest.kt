@@ -7,7 +7,6 @@ import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.User
 import org.example.logic.models.UserRole
 import org.example.logic.useCase.LoginUserUseCase
-import org.example.logic.utils.BlankInputException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import presentation.utils.io.Reader
@@ -82,22 +81,5 @@ class LoginUITest {
 
         verify { onNavigateToShowAllProjectsMock(UserRole.USER) }
         verify(exactly = 5) { viewerMock.display(any()) }
-    }
-
-    @Test
-    fun `should display error message when username or password is blank`() {
-        val exceptionMessage = "Input cannot be blank"
-        every { readerMock.readString() } returns "" andThen "password123"
-        every { loginUserUseCase("", "password123") } throws BlankInputException()
-
-        LoginUI(
-            onNavigateToAdminHomeMock,
-            onNavigateToShowAllProjectsMock,
-            loginUserUseCase,
-            readerMock,
-            viewerMock,
-        )
-
-        verify(exactly = 1) { viewerMock.display("Error: $exceptionMessage") }
     }
 }

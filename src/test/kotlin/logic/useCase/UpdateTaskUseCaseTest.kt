@@ -45,10 +45,29 @@ class UpdateTaskUseCaseTest {
         updateTaskUseCase = UpdateTaskUseCase(taskRepository, createAuditLogUseCase)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     @Test
     fun `should update task when changes detected and create audit log`() {
         val existingTask = createTask("Old Task")
         val updatedTask = existingTask.copy(name = "New Task")
+
+        // Construct a proper AuditLog matching your model
+        val auditLog =
+            AuditLog(
+                id = Uuid.random(),
+                userId = updatedTask.addedById,
+                userName = updatedTask.addedByName,
+                entityId = taskId,
+                entityType = AuditLog.EntityType.TASK,
+                entityName = "New Task",
+                actionType = AuditLog.ActionType.UPDATE,
+                fieldChange =
+                    AuditLog.FieldChange(
+                        fieldName = "name",
+                        oldValue = "Old Task",
+                        newValue = "New Task",
+                    ),
+            )
 
         every { taskRepository.getTaskById(taskId) } returns Single.just(existingTask)
         every { taskRepository.updateTask(updatedTask) } returns Single.just(updatedTask)
@@ -62,7 +81,7 @@ class UpdateTaskUseCaseTest {
                         it.fieldName == "name" && it.oldValue == "Old Task" && it.newValue == "New Task"
                     },
             )
-        } returns mockk(relaxed = true)
+        } returns Single.just(auditLog)
 
         val testObserver = updateTaskUseCase(updatedTask).test()
 

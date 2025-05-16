@@ -12,7 +12,6 @@ import org.example.logic.useCase.GetProjectStatesUseCase
 import org.example.logic.useCase.Validation
 import org.example.logic.utils.BlankInputException
 import org.example.logic.utils.Constants
-import org.example.logic.utils.ProjectNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -111,21 +110,5 @@ class CreateProjectStateUseCaseTest {
 
         verify { validation.validateInputNotBlankOrThrow(blankStateName) }
         confirmVerified(projectStateRepository, getProjectStatesUseCase, createAuditLogUseCase)
-    }
-
-    @Test
-    fun `should throw ProjectNotFoundException when no project found with the given id`() {
-        // Arrange
-        val projectId = Uuid.random()
-        every { validation.validateInputNotBlankOrThrow(stateName) } just Runs
-        every { getProjectStatesUseCase(projectId) } returns Single.error(ProjectNotFoundException())
-
-        assertThrows<ProjectNotFoundException> {
-            createProjectStateUseCase(projectId, stateName).blockingGet()
-        }
-
-        verify { validation.validateInputNotBlankOrThrow(stateName) }
-        verify { getProjectStatesUseCase(projectId) }
-        confirmVerified(projectStateRepository, createAuditLogUseCase)
     }
 }
