@@ -7,7 +7,6 @@ import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Single
 import org.example.data.repository.sources.remote.RemoteAuditLogDataSource
 import org.example.data.source.remote.models.AuditLogDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLog
 import org.example.data.source.remote.mongo.utils.mapper.toAuditLogDTO
 import org.example.data.utils.Constants.ENTITY_ID
@@ -21,45 +20,39 @@ class MongoAuditLogDataSource(
     private val auditLogCollection: MongoCollection<AuditLogDTO>,
 ) : RemoteAuditLogDataSource {
     override fun saveAuditLog(auditLog: AuditLog): Single<AuditLog> =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(auditLogCollection.insertOne(auditLog.toAuditLogDTO()))
-                .map {
-                    auditLog
-                }
-        }
+        Single
+            .fromPublisher(auditLogCollection.insertOne(auditLog.toAuditLogDTO()))
+            .map {
+                auditLog
+            }
 
     override fun deleteAuditLog(auditLogId: Uuid): Completable =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(
-                    auditLogCollection.deleteOne(Filters.eq(ID, auditLogId.toHexString())),
-                ).flatMapCompletable {
-                    Completable.complete()
-                }
-        }
+        Single
+            .fromPublisher(
+                auditLogCollection.deleteOne(Filters.eq(ID, auditLogId.toHexString())),
+            ).flatMapCompletable {
+                Completable.complete()
+            }
 
     override fun getEntityLogs(
         entityId: Uuid,
         entityType: AuditLog.EntityType,
-    ): Single<List<AuditLog>> =
-        executeMongoOperationRx {
-            val entityPublisher = auditLogCollection.find(Filters.eq(ENTITY_ID, entityId.toHexString()))
-            Flowable
-                .fromPublisher(entityPublisher)
-                .map { auditLogDTO ->
-                    auditLogDTO.toAuditLog()
-                }.toList()
-        }
+    ): Single<List<AuditLog>> {
+        val entityPublisher = auditLogCollection.find(Filters.eq(ENTITY_ID, entityId.toHexString()))
+        return Flowable
+            .fromPublisher(entityPublisher)
+            .map { auditLogDTO ->
+                auditLogDTO.toAuditLog()
+            }.toList()
+    }
 
-    override fun getEntityLogByLogId(auditLogId: Uuid): Single<AuditLog> =
-        executeMongoOperationRx {
-            val publisher = auditLogCollection.find(Filters.eq(ID, auditLogId.toHexString())).first()
+    override fun getEntityLogByLogId(auditLogId: Uuid): Single<AuditLog> {
+        val publisher = auditLogCollection.find(Filters.eq(ID, auditLogId.toHexString())).first()
 
-            Single
-                .fromPublisher(publisher)
-                .map { auditLogDTO ->
-                    auditLogDTO.toAuditLog()
-                }
-        }
+        return Single
+            .fromPublisher(publisher)
+            .map { auditLogDTO ->
+                auditLogDTO.toAuditLog()
+            }
+    }
 }

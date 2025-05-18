@@ -7,7 +7,6 @@ import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Single
 import org.example.data.source.remote.contract.RemoteProjectStateDataSource
 import org.example.data.source.remote.models.ProjectStateDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toState
 import org.example.data.source.remote.mongo.utils.mapper.toStateDTO
 import org.example.data.utils.Constants.ID
@@ -22,49 +21,39 @@ class MongoProjectStateDataSource(
     private val mongoClient: MongoCollection<ProjectStateDTO>,
 ) : RemoteProjectStateDataSource {
     override fun createProjectState(projectState: ProjectState): Single<ProjectState> =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(mongoClient.insertOne(projectState.toStateDTO()))
-                .map { projectState }
-        }
+        Single
+            .fromPublisher(mongoClient.insertOne(projectState.toStateDTO()))
+            .map { projectState }
 
     override fun updateProjectState(updatedProjectProjectState: ProjectState): Single<ProjectState> =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(
-                    mongoClient.replaceOne(
-                        Filters.eq(ID, updatedProjectProjectState.id.toHexString()),
-                        updatedProjectProjectState.toStateDTO(),
-                    ),
-                ).map { updatedProjectProjectState }
-        }
+        Single
+            .fromPublisher(
+                mongoClient.replaceOne(
+                    Filters.eq(ID, updatedProjectProjectState.id.toHexString()),
+                    updatedProjectProjectState.toStateDTO(),
+                ),
+            ).map { updatedProjectProjectState }
 
     override fun deleteProjectState(projectStateId: Uuid): Completable =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(mongoClient.deleteOne(Filters.eq(ID, projectStateId.toHexString())))
-                .flatMapCompletable { Completable.complete() }
-        }
+        Single
+            .fromPublisher(mongoClient.deleteOne(Filters.eq(ID, projectStateId.toHexString())))
+            .flatMapCompletable { Completable.complete() }
 
     override fun getProjectStateById(projectStateId: Uuid): Single<ProjectState> =
-        executeMongoOperationRx {
-            Single
-                .fromPublisher(mongoClient.find(Filters.eq(ID, projectStateId.toHexString())).first())
-                .map { it.toState() }
-                .onErrorResumeNext { error ->
-                    if (error is NoSuchElementException) {
-                        Single.error(ProjectStateNotFoundException())
-                    } else {
-                        Single.error(error)
-                    }
+        Single
+            .fromPublisher(mongoClient.find(Filters.eq(ID, projectStateId.toHexString())).first())
+            .map { it.toState() }
+            .onErrorResumeNext { error ->
+                if (error is NoSuchElementException) {
+                    Single.error(ProjectStateNotFoundException())
+                } else {
+                    Single.error(error)
                 }
-        }
+            }
 
     override fun getProjectStates(projectId: Uuid): Single<List<ProjectState>> =
-        executeMongoOperationRx {
-            Flowable
-                .fromPublisher(mongoClient.find(Filters.eq(PROJECT_ID, projectId.toHexString())))
-                .map { it.toState() }
-                .toList()
-        }
+        Flowable
+            .fromPublisher(mongoClient.find(Filters.eq(PROJECT_ID, projectId.toHexString())))
+            .map { it.toState() }
+            .toList()
 }

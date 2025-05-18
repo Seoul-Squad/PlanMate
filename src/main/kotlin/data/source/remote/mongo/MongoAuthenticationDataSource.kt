@@ -8,7 +8,6 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import org.example.data.repository.sources.remote.RemoteAuthenticationDataSource
 import org.example.data.source.remote.models.UserDTO
-import org.example.data.source.remote.mongo.utils.executeMongoOperationRx
 import org.example.data.source.remote.mongo.utils.mapper.toUser
 import org.example.data.source.remote.mongo.utils.mapper.toUserDTO
 import org.example.data.utils.Constants.AUTH_TYPE_FIELD
@@ -32,43 +31,38 @@ class MongoAuthenticationDataSource(
                 if (!isEmpty) {
                     Single.error(UserAlreadyExistsException())
                 } else {
-                    executeMongoOperationRx {
-                        Single.fromPublisher(mongoClient.insertOne(user.toUserDTO()))
-                    }.map { user }
+                    Single.fromPublisher(mongoClient.insertOne(user.toUserDTO())).map { user }
                 }
             }
 
     override fun getAllUsers(): Single<List<User>> =
-        executeMongoOperationRx {
-            Flowable
-                .fromPublisher(mongoClient.find())
-                .map { userDTO ->
-                    userDTO.toUser()
-                }.toList()
-        }
+        Flowable
+            .fromPublisher(mongoClient.find())
+            .map { userDTO ->
+                userDTO.toUser()
+            }.toList()
 
     override fun loginWithPassword(
         username: String,
         hashedPassword: String,
-    ): Single<User> =
-        executeMongoOperationRx {
-            val publisher =
-                mongoClient
-                    .find(
-                        Filters.and(
-                            Filters.eq(USERNAME_FIELD, username),
-                            Filters.eq(AUTH_TYPE_FIELD, "password"),
-                            Filters.eq(PASSWORD_FIELD, hashedPassword),
-                        ),
-                    ).first()
+    ): Single<User> {
+        val publisher =
+            mongoClient
+                .find(
+                    Filters.and(
+                        Filters.eq(USERNAME_FIELD, username),
+                        Filters.eq(AUTH_TYPE_FIELD, "password"),
+                        Filters.eq(PASSWORD_FIELD, hashedPassword),
+                    ),
+                ).first()
 
-            Single
-                .fromPublisher(publisher)
-                .map { userDTO ->
-                    currentUser = userDTO.toUser()
-                    currentUser!!
-                }
-        }
+        return Single
+            .fromPublisher(publisher)
+            .map { userDTO ->
+                currentUser = userDTO.toUser()
+                currentUser!!
+            }
+    }
 
     override fun logout(): Completable = Completable.fromAction { currentUser = null }
 
