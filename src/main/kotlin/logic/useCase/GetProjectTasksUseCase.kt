@@ -1,5 +1,6 @@
 package org.example.logic.useCase
 
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.Task
 import org.example.logic.repositries.TaskRepository
 import kotlin.uuid.ExperimentalUuidApi
@@ -9,10 +10,10 @@ import kotlin.uuid.Uuid
 class GetProjectTasksUseCase(
     private val taskRepository: TaskRepository,
 ) {
-    suspend operator fun invoke(projectId: Uuid): List<Task> =
+    operator fun invoke(projectId: Uuid): Single<List<Task>> =
         taskRepository
             .getAllTasks()
-            .filter { isTaskForProject(it, projectId) }
+            .map { tasks -> tasks.filter { task -> isTaskForProject(task, projectId) } }
 
     private fun isTaskForProject(
         task: Task,

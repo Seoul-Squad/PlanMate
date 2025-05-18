@@ -1,5 +1,6 @@
 package org.example.logic.useCase
 
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.AuditLog
 import org.example.logic.models.ProjectState
 import org.example.logic.repositries.ProjectStateRepository
@@ -14,27 +15,34 @@ class CreateProjectStateUseCase(
     private val createAuditLogUseCase: CreateAuditLogUseCase,
     private val validation: Validation,
 ) {
-    suspend operator fun invoke(
+    @OptIn(ExperimentalUuidApi::class)
+    operator fun invoke(
         projectId: Uuid,
         stateName: String,
-    ): ProjectState {
+    ): Single<ProjectState> {
         validation.validateInputNotBlankOrThrow(stateName)
-        val oldStates = getProjectStatesUseCase(projectId)
-        return createAuditLogUseCase.logUpdate(
-            entityType = AuditLog.EntityType.PROJECT,
-            entityId = projectId,
-            entityName = "",
-            fieldChange = AuditLog.FieldChange(
-                fieldName = Constants.FIELD_STATES,
-                oldValue = oldStates.joinToString(separator = ", ") { it.title },
-                newValue = oldStates.plusElement(ProjectState(title = stateName, projectId = projectId)).joinToString(separator = ", ") { it.title },
-            )
-        ).let {
-            projectStateRepository.createProjectState(
+        val oldStates = getProjectStatesUseCase(projectId).blockingGet()
+        return projectStateRepository
+            .createProjectState(
                 ProjectState(
-                    title = stateName, projectId = projectId
+                    title = stateName,
+                    projectId = projectId,
+                ),
+            ).doOnSuccess {
+                createAuditLogUseCase.logUpdate(
+                    entityType = AuditLog.EntityType.PROJECT,
+                    entityId = projectId,
+                    entityName = "",
+                    fieldChange =
+                        AuditLog.FieldChange(
+                            fieldName = Constants.FIELD_STATES,
+                            oldValue = oldStates.joinToString(separator = ", ") { it.title },
+                            newValue =
+                                oldStates
+                                    .plusElement(it)
+                                    .joinToString(separator = ", ") { it.title },
+                        ),
                 )
-            )
-        }
+            }
     }
 }

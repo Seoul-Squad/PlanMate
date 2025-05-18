@@ -1,11 +1,17 @@
 package org.example.presentation.screens
 
-import kotlinx.coroutines.runBlocking
 import org.example.logic.models.AuditLog
 import org.example.logic.models.Project
-import org.example.logic.useCase.*
+import org.example.logic.models.UserRole
+import org.example.logic.useCase.DeleteProjectUseCase
+import org.example.logic.useCase.GetAllProjectsUseCase
+import org.example.logic.useCase.GetEntityAuditLogsUseCase
+import org.example.logic.useCase.LogoutUseCase
 import org.example.logic.useCase.updateProject.UpdateProjectUseCase
-import org.example.logic.utils.*
+import org.example.logic.utils.BlankInputException
+import org.example.logic.utils.ProjectNotChangedException
+import org.example.logic.utils.ProjectNotFoundException
+import org.example.logic.utils.TaskNotFoundException
 import org.example.presentation.role.ProjectScreensOptions
 import org.koin.java.KoinJavaComponent.getKoin
 import presentation.utils.*
@@ -18,8 +24,10 @@ import kotlin.uuid.Uuid
 class ProjectsOverviewUI(
     private val onNavigateToShowProjectTasksUI: (id: Uuid) -> Unit,
     private val onNavigateToProjectStatusUI: (id: Uuid) -> Unit,
+    private val onNavigateBack: () -> Unit,
     private val onLogout: () -> Unit,
     private val onExit: () -> Unit,
+    private val userRoute: UserRole,
     private val projectScreensOptions: ProjectScreensOptions,
     private val getAllProjectsUseCase: GetAllProjectsUseCase,
     private val updateProjectUseCase: UpdateProjectUseCase,
@@ -36,22 +44,23 @@ class ProjectsOverviewUI(
         showMainMenu()
     }
 
-    private fun showAllProjects(): List<Project> =
-        runBlocking {
-            try {
-                val projects = getAllProjectsUseCase()
+    private fun showAllProjects(): List<Project> {
+        try {
+            val projects =
+                getAllProjectsUseCase()
+                    .blockingCollect()
 
-                if (projects.isEmpty()) {
-                    displayNoProjectsMessage()
-                    return@runBlocking emptyList()
-                }
-                showProjectsInTable(projects)
-                return@runBlocking projects
-            } catch (e: Exception) {
-                displayLoadingError(e)
-                return@runBlocking emptyList()
+            if (projects.isEmpty()) {
+                displayNoProjectsMessage()
+                return emptyList()
             }
+            showProjectsInTable(projects)
+            return projects
+        } catch (e: Exception) {
+            displayLoadingError(e)
+            return emptyList()
         }
+    }
 
     private fun showMainMenu() {
         while (true) {
@@ -72,14 +81,19 @@ class ProjectsOverviewUI(
                 MainMenuOption.UPDATE_PROJECT -> manageProject(projects)
                 MainMenuOption.DELETE_PROJECT -> deleteProject(projects)
                 MainMenuOption.SHOW_PROJECT_LOGS -> showProjectLogsInTable(projects)
-                MainMenuOption.LOGOUT -> {
-                    logout()
+                MainMenuOption.BACK -> {
+                    when (userRoute) {
+                        UserRole.ADMIN -> onNavigateBack()
+                        UserRole.USER -> logout()
+                    }
                     return
                 }
-                MainMenuOption.EXIT ->{
+
+                MainMenuOption.EXIT -> {
                     onExit()
                     return
                 }
+
                 null -> viewer.display("Invalid input. Please try again.".red())
             }
         }
@@ -112,10 +126,9 @@ class ProjectsOverviewUI(
         return projects[index]
     }
 
-    private fun displayLoadingError(e: Exception) {
+    private fun displayLoadingError(e: Throwable) {
         viewer.display("Failed to load projects: ${e.message}".red())
     }
-
 
     private fun showProjectDetails(projects: List<Project>) {
         val project = getProjectByUserIndexSelection(projects) ?: return
@@ -142,63 +155,63 @@ class ProjectsOverviewUI(
         }
     }
 
-    private fun deleteProject(projects: List<Project>) =
-        runBlocking {
-            try {
-                val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
-                deleteProjectUseCase(project.id)
+    private fun deleteProject(projects: List<Project>) {
+        try {
+            val project = getProjectByUserIndexSelection(projects) ?: return
+            deleteProjectUseCase(project.id).blockingSubscribe {
                 viewer.display("Project deleted successfully.".green())
-            } catch (e: Exception) {
-                viewer.display("Failed to delete project: ${e.message}".red())
             }
+        } catch (e: Exception) {
+            viewer.display("Failed to delete project: ${e.message}".red())
         }
+    }
 
-    private fun showProjectLogsInTable(projects: List<Project>) =
-        runBlocking {
-            try {
-                val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
-                val projectLogs = getEntityAuditLogsUseCase(project.id, AuditLog.EntityType.PROJECT)
-                val actions = projectLogs.map { it.toReadableMessage() }
-                tablePrinter.printTable(
-                    headers = listOf("Actions"),
-                    columnValues = listOf(actions),
-                )
-            } catch (e: TaskNotFoundException) {
-                viewer.display("Failed to load project logs: $TASK_NOT_FOUND_ERROR_MESSAGE")
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to load project logs: $PROJECT_NOT_FOUND_ERROR_MESSAGE")
-            } catch (e: BlankInputException) {
-                viewer.display("Failed to load project logs: $BLANK_ENTITY_ID_ERROR_MESSAGE")
-            } catch (e: Exception) {
-                viewer.display("Failed to load project logs: ${e.message}".red())
+    private fun showProjectLogsInTable(projects: List<Project>) {
+        try {
+            val project = getProjectByUserIndexSelection(projects) ?: return
+            val projectLogs =
+                getEntityAuditLogsUseCase(project.id, AuditLog.EntityType.PROJECT).blockingCollect()
+            val actions = projectLogs.map { it.toReadableMessage() }
+            tablePrinter.printTable(
+                headers = listOf("Actions"),
+                columnValues = listOf(actions),
+            )
+        } catch (_: TaskNotFoundException) {
+            viewer.display("Failed to load project logs: $TASK_NOT_FOUND_ERROR_MESSAGE")
+        } catch (_: ProjectNotFoundException) {
+            viewer.display("Failed to load project logs: $PROJECT_NOT_FOUND_ERROR_MESSAGE")
+        } catch (_: BlankInputException) {
+            viewer.display("Failed to load project logs: $BLANK_ENTITY_ID_ERROR_MESSAGE")
+        } catch (e: Exception) {
+            viewer.display("Failed to load project logs: ${e.message}".red())
+        }
+    }
+
+    private fun logout() {
+        logoutUseCase()
+            .subscribe {
+                onLogout()
             }
-        }
+    }
 
-    private fun logout() =
-        runBlocking {
-            logoutUseCase()
-            onLogout()
+    private fun updateProjectName(projects: List<Project>) {
+        try {
+            val project = getProjectByUserIndexSelection(projects) ?: return
+            viewer.display("Enter new project name:")
+            val newName = reader.readString()
+            val updated = project.copy(name = newName)
+            updateProjectUseCase(updated).blockingCollect()
+            viewer.display("Project name updated successfully.".green())
+        } catch (e: BlankInputException) {
+            viewer.display("Failed to update project name: ${e.message}")
+        } catch (_: ProjectNotChangedException) {
+            viewer.display("Failed to update project name: $NO_CHANGES_DETECTED_EXCEPTION_MESSAGE")
+        } catch (_: ProjectNotFoundException) {
+            viewer.display("Failed to update project name: $PROJECT_NOT_FOUND_EXCEPTION_MESSAGE")
+        } catch (e: Exception) {
+            viewer.display("Failed to update project name: ${e.message}".red())
         }
-
-    private fun updateProjectName(projects: List<Project>) =
-        runBlocking {
-            try {
-                val project = getProjectByUserIndexSelection(projects) ?: return@runBlocking
-                viewer.display("Enter new project name:")
-                val newName = reader.readString()
-                val updated = project.copy(name = newName)
-                updateProjectUseCase(updated)
-                viewer.display("Project name updated successfully.".green())
-            } catch (e: BlankInputException) {
-                viewer.display("Failed to update project name: ${e.message}")
-            } catch (e: ProjectNotChangedException) {
-                viewer.display("Failed to update project name: $NO_CHANGES_DETECTED_EXCEPTION_MESSAGE")
-            } catch (e: ProjectNotFoundException) {
-                viewer.display("Failed to update project name: $PROJECT_NOT_FOUND_EXCEPTION_MESSAGE")
-            } catch (e: Exception) {
-                viewer.display("Failed to update project name: ${e.message}".red())
-            }
-        }
+    }
 
     enum class MainMenuOption(
         val key: String,
@@ -207,7 +220,7 @@ class ProjectsOverviewUI(
         UPDATE_PROJECT("2"),
         DELETE_PROJECT("3"),
         SHOW_PROJECT_LOGS("4"),
-        LOGOUT("5"),
+        BACK("5"),
         EXIT("0"),
         ;
 
@@ -232,15 +245,19 @@ class ProjectsOverviewUI(
         fun create(
             onNavigateToShowProjectTasksUI: (id: Uuid) -> Unit,
             onNavigateToProjectStatusUI: (id: Uuid) -> Unit,
+            onNavigateBack: () -> Unit,
             onLogout: () -> Unit,
             onExit: () -> Unit,
+            userRole: UserRole,
             projectScreensOptions: ProjectScreensOptions,
         ): ProjectsOverviewUI =
             ProjectsOverviewUI(
                 onNavigateToShowProjectTasksUI = onNavigateToShowProjectTasksUI,
                 onNavigateToProjectStatusUI = onNavigateToProjectStatusUI,
+                onNavigateBack = onNavigateBack,
                 onLogout = onLogout,
                 onExit = onExit,
+                userRoute = userRole,
                 projectScreensOptions = projectScreensOptions,
                 getAllProjectsUseCase = getKoin().get(),
                 updateProjectUseCase = getKoin().get(),

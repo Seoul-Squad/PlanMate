@@ -1,6 +1,5 @@
 package org.example
 
-import com.sun.tools.javac.Main
 import di.appModule
 import org.example.presentation.MainUiController
 import org.koin.core.context.startKoin

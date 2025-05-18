@@ -13,29 +13,32 @@ class DeleteProjectStateUseCase(
     private val taskRepository: TaskRepository,
     private val getProjectTasksUseCase: GetProjectTasksUseCase,
     private val getProjectStatesUseCase: GetProjectStatesUseCase,
-    private val createAuditLogUseCase: CreateAuditLogUseCase
+    private val createAuditLogUseCase: CreateAuditLogUseCase,
 ) {
-    suspend operator fun invoke(
+    operator fun invoke(
         stateId: Uuid,
         projectId: Uuid,
     ) {
-        getProjectTasksUseCase(projectId).filter { it.stateId == stateId }.forEach { task ->
-            taskRepository.deleteTask(task.id)
-        }.also {
-            val oldStates = getProjectStatesUseCase(projectId)
-            createAuditLogUseCase.logUpdate(
+        getProjectTasksUseCase(projectId)
+            .map { tasks -> tasks.filter { task -> task.stateId == stateId } }
+            .blockingGet()
+            .forEach { task ->
+                taskRepository.deleteTask(task.id).blockingSubscribe()
+            }
+        val oldStates = getProjectStatesUseCase(projectId).blockingGet()
+        createAuditLogUseCase
+            .logUpdate(
                 entityType = AuditLog.EntityType.PROJECT,
                 entityId = projectId,
                 entityName = "",
-                fieldChange = AuditLog.FieldChange(
-                    fieldName = Constants.FIELD_STATES,
-                    oldValue = oldStates.joinToString(separator = ", ") { it.title },
-                    newValue = oldStates.filter { it.id == stateId }.joinToString(separator = ", ") { it.title },
-                )
-            ).also {
-                projectStateRepository.deleteProjectState(stateId)
+                fieldChange =
+                    AuditLog.FieldChange(
+                        fieldName = Constants.FIELD_STATES,
+                        oldValue = oldStates.joinToString(separator = ", ") { it.title },
+                        newValue = oldStates.filter { it.id == stateId }.joinToString(separator = ", ") { it.title },
+                    ),
+            ).blockingSubscribe {
+                projectStateRepository.deleteProjectState(stateId).blockingSubscribe()
             }
-        }
     }
-
 }

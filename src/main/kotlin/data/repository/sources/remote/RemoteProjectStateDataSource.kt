@@ -1,18 +1,20 @@
 package org.example.data.source.remote.contract
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
+import org.example.logic.models.ProjectState
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
-import org.example.logic.models.ProjectState
 
 @OptIn(ExperimentalUuidApi::class)
 interface RemoteProjectStateDataSource {
-    suspend fun createProjectState(projectState: ProjectState): ProjectState
+    fun createProjectState(projectState: ProjectState): Single<ProjectState>
 
-    suspend fun updateProjectState(updatedProjectProjectState: ProjectState): ProjectState
+    fun updateProjectState(updatedProjectProjectState: ProjectState): Single<ProjectState>
 
-    suspend fun deleteProjectState(projectStateId: Uuid)
+    fun deleteProjectState(projectStateId: Uuid): Completable
 
-    suspend fun getProjectStates(projectId:Uuid): List<ProjectState>
+    fun getProjectStates(projectId: Uuid): Single<List<ProjectState>>
 
-    suspend fun getProjectStateById(projectStateId: Uuid): ProjectState?
+    fun getProjectStateById(projectStateId: Uuid): Single<ProjectState>
 }

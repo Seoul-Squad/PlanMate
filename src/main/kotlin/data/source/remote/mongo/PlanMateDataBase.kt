@@ -2,13 +2,10 @@ package org.example.data.source.remote.mongo
 
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
-import com.mongodb.kotlin.client.coroutine.MongoClient
+import com.mongodb.reactivestreams.client.MongoClients
+import com.mongodb.reactivestreams.client.MongoCollection
 import data.source.remote.mongo.utils.AuthenticationMethodDtoCodec
 import io.github.cdimascio.dotenv.dotenv
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 import org.bson.codecs.configuration.CodecRegistries
 import org.bson.codecs.configuration.CodecRegistry
 import org.example.data.source.remote.models.*
@@ -21,26 +18,29 @@ import org.example.data.utils.Constants.CollectionNames.USERS_DOCUMENTATION
 import org.example.data.utils.Constants.MONGODB_URI
 import org.example.logic.utils.DataBaseException
 
-
 object PlanMateDataBase {
     private val uri: String = dotenv()[MONGODB_URI] ?: throw DataBaseException()
 
-    private val codecRegistry: CodecRegistry = CodecRegistries.fromRegistries(
-        CodecRegistries.fromCodecs(AuthenticationMethodDtoCodec()),
-        MongoClientSettings.getDefaultCodecRegistry()
-    )
+    private val codecRegistry: CodecRegistry =
+        CodecRegistries.fromRegistries(
+            CodecRegistries.fromCodecs(AuthenticationMethodDtoCodec()),
+            MongoClientSettings.getDefaultCodecRegistry(),
+        )
 
-    private val settings = MongoClientSettings.builder()
-        .applyConnectionString(ConnectionString(uri))
-        .codecRegistry(codecRegistry)
-        .build()
+    private val settings =
+        MongoClientSettings
+            .builder()
+            .applyConnectionString(ConnectionString(uri))
+            .codecRegistry(codecRegistry)
+            .build()
 
-    private val client = MongoClient.create(settings)
-    private val database = client.getDatabase(Constants.DATABASE_NAME)
+    private val clientRx = MongoClients.create(settings)
+    private val databaseRx = clientRx.getDatabase(Constants.DATABASE_NAME)
 
-    val projectDoc = database.getCollection<ProjectDTO>(PROJECTS_DOCUMENTATION)
-    val taskDoc = database.getCollection<TaskDTO>(TASKS_DOCUMENTATION)
-    val userDoc = database.getCollection<UserDTO>(USERS_DOCUMENTATION)
-    val auditLogDoc = database.getCollection<AuditLogDTO>(AUDIT_LOGS_DOCUMENTATION)
-    val stateDoc = database.getCollection<ProjectStateDTO>(STATE_DOCUMENTATION)
+    val projectDoc: MongoCollection<ProjectDTO> =
+        databaseRx.getCollection(PROJECTS_DOCUMENTATION, ProjectDTO::class.java)
+    val taskDoc: MongoCollection<TaskDTO> = databaseRx.getCollection(TASKS_DOCUMENTATION, TaskDTO::class.java)
+    val userDoc: MongoCollection<UserDTO> = databaseRx.getCollection(USERS_DOCUMENTATION, UserDTO::class.java)
+    val auditLogDoc: MongoCollection<AuditLogDTO> = databaseRx.getCollection(AUDIT_LOGS_DOCUMENTATION, AuditLogDTO::class.java)
+    val stateDoc: MongoCollection<ProjectStateDTO> = databaseRx.getCollection(STATE_DOCUMENTATION, ProjectStateDTO::class.java)
 }

@@ -1,9 +1,9 @@
 package logic.useCase
 
-import com.google.common.truth.Truth.assertThat
-import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.observers.TestObserver
 import mockdata.createTask
 import org.example.logic.models.Task
 import org.example.logic.repositries.TaskRepository
@@ -15,36 +15,44 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class GetTasksByProjectStateUseCaseTest {
+    private lateinit var taskRepository: TaskRepository
+    private lateinit var getTasksByProjectStateUseCase: GetTasksByProjectStateUseCase
+    private val stateId = Uuid.random()
 
- private lateinit var taskRepository: TaskRepository
- private lateinit var getTasksByProjectStateUseCase: GetTasksByProjectStateUseCase
- private val stateId = Uuid.random()
+    @BeforeEach
+    fun setUp() {
+        taskRepository = mockk(relaxed = true)
+        getTasksByProjectStateUseCase = GetTasksByProjectStateUseCase(taskRepository)
+    }
 
- @BeforeEach
- fun setUp() {
-  taskRepository = mockk(relaxed = true)
-  getTasksByProjectStateUseCase = GetTasksByProjectStateUseCase(taskRepository)
- }
+    @Test
+    fun `should return tasks when tasks exist for the given state`() {
+        val tasks =
+            listOf(
+                createTask(stateId, "task1"),
+                createTask(stateId, "task2"),
+            )
+        every { taskRepository.getTasksByProjectState(stateId) } returns Single.just(tasks)
 
- @Test
- fun `should return tasks when tasks exist for the given state`() = runTest {
-  val tasks = listOf(
-   createTask(stateId, "task1"),
-   createTask(stateId, "task2")
-  )
-  coEvery { taskRepository.getTasksByProjectState(stateId) } returns tasks
+        val testObserver: TestObserver<List<Task>> = getTasksByProjectStateUseCase(stateId).test()
 
-  val result = getTasksByProjectStateUseCase(stateId)
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue {
+            it == tasks
+        }
+    }
 
-  assertThat(result).isEqualTo(tasks)
- }
+    @Test
+    fun `should return empty list when no tasks exist for the given state`() {
+        every { taskRepository.getTasksByProjectState(stateId) } returns Single.just(emptyList())
 
- @Test
- fun `should return empty list when no tasks exist for the given state`() = runTest {
-  coEvery { taskRepository.getTasksByProjectState(stateId) } returns emptyList()
+        val testObserver: TestObserver<List<Task>> = getTasksByProjectStateUseCase(stateId).test()
 
-  val result = getTasksByProjectStateUseCase(stateId)
-
-  assertThat(result).isEmpty()
- }
+        testObserver.assertComplete()
+        testObserver.assertNoErrors()
+        testObserver.assertValue {
+            it.isEmpty()
+        }
+    }
 }

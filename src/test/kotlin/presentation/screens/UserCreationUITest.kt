@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.reactivex.rxjava3.core.Single
 import org.example.logic.models.User
 import org.example.logic.models.UserRole
 import org.example.logic.useCase.CreateUserUseCase
@@ -35,7 +36,7 @@ class UserCreationUITest {
                 authMethod = User.AuthenticationMethod.Password(password),
             )
         every { readerMock.readString() } returns username andThen password
-        coEvery { createUserUseCase(username, password) } returns user
+        coEvery { createUserUseCase(username, password) } returns Single.just(user)
 
         UserCreationUI(createUserUseCase, readerMock, viewerMock, onBackMock)
 
